@@ -26,7 +26,7 @@ const I = {
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>', down: '<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>', user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="3"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>', lockc: '<rect x="5" y="11" width="14" height="10" rx="3"/><path d="M8 11V8a4 4 0 0 1 8 0v3M9.5 16l1.8 1.8 3.2-3.6"/>',
   eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', cam: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>',
-  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', check: '<path d="M5 12l5 5 9-10"/>', chev: '<path d="M9 6l6 6-6 6"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>', img: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', check: '<path d="M5 12l5 5 9-10"/>', chev: '<path d="M9 6l6 6-6 6"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>', up: '<path d="M6 15l6-6 6 6"/>', dn: '<path d="M6 9l6 6 6-6"/>', tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="7.5" r="1.5"/>', img: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/>',
 };
 const ic = (n, s = 22, w = 2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
 const WA = '<svg width="22" height="22" viewBox="0 0 720 720" aria-hidden="true"><path fill="#25D366" d="M360,0C161.18,0,0,161.18,0,360c0,65.41,17.45,126.75,47.94,179.61L0,720l187.02-44.21c51.34,28.18,110.28,44.21,172.98,44.21,198.82,0,360-161.18,360-360S558.82,0,360,0ZM360,655.52c-60.17,0-116.13-17.98-162.82-48.87l-110.49,28.14,30.99-105.61c-33.53-47.93-53.2-106.26-53.2-169.19,0-163.21,132.31-295.52,295.52-295.52s295.52,132.31,295.52,295.52-132.31,295.52-295.52,295.52Z"/><path fill="#25D366" d="M444.35,407.52l87.1,41.06c4,1.88,6.56,5.94,6.2,10.34-.94,11.46-5.54,34.43-26.13,55.02-58.12,58.12-162.49-7.64-166.74-10.18-25.67-13.79-50.06-32.24-73.19-55.36s-41.58-47.52-55.37-73.19c-2.55-4.24-68.31-108.61-10.18-166.74,20.59-20.59,43.56-25.19,55.02-26.13,4.41-.36,8.46,2.2,10.34,6.2l41.07,87.1c1.94,4.12,1.09,9.02-2.13,12.24l-30.61,30.61c-6.62,6.62-8.56,16.93-4,25.11,11.17,20.03,26.19,39.32,43.59,57.07,17.75,17.4,37.04,32.43,57.07,43.59,8.18,4.56,18.48,2.62,25.11-4l30.61-30.61c3.22-3.22,8.12-4.08,12.24-2.13Z"/></svg>';
@@ -46,7 +46,10 @@ function RL() {
     sandi: async p => { ok(await sb.auth.updateUser({ password: p })); ok(await sb.from('pengaturan').update({ sandi_diganti: true }).eq('user_id', S.u.id)); await jejak('ganti_sandi'); },
     peng: async () => ok(await sb.from('pengaturan').select('tema,sandi_diganti,nama').maybeSingle()) || { tema: 'auto', sandi_diganti: false, nama: null },
     setPeng: async o => ok(await sb.from('pengaturan').update(o).eq('user_id', S.u.id)),
-    kategori: async () => ok(await sb.from('kategori').select('id,nama,warna').order('urutan')),
+    kategori: async () => ok(await sb.from('kategori').select('id,nama,warna').order('urutan').order('nama')),
+    katSimpan: async o => o.id ? ok(await sb.from('kategori').update({ nama: o.nama, warna: o.warna }).eq('id', o.id)) : ok(await sb.from('kategori').insert({ nama: o.nama, warna: o.warna, urutan: o.urutan })),
+    katHapus: async (id, p) => ok(await sb.rpc('hapus_kategori', { p_id: id, p_pindah: p || null })),
+    katUrut: async ids => ok(await sb.rpc('urut_kategori', { p_ids: ids })),
     catatan: async ({ dari, sampai, q, kat, hal = 0, per = 30 }) => {
       let r = sb.from('catatan').select('id,tanggal,toko,kategori_id,total,ppn,sumber', { count: 'exact' }).order('tanggal', { ascending: false }).order('dibuat', { ascending: false }).range(hal * per, hal * per + per - 1);
       if (dari) r = r.gte('tanggal', dari); if (sampai) r = r.lt('tanggal', sampai); if (kat) r = r.eq('kategori_id', kat);
@@ -76,7 +79,7 @@ function RL() {
       return out;
     },
     baca: async (g, t) => {
-      const { data, error } = await sb.functions.invoke('baca-struk', { body: { gambar: g, tipe: t } });
+      const { data, error } = await sb.functions.invoke('baca-struk', { body: { gambar: g, tipe: t, kategori: S.kat.map(k => k.nama) } });
       if (error) { let m; try { m = (await error.context.json()).pesan; } catch { } throw ramah(m || 'Struknya belum bisa dibaca, coba lagi atau ketik manual'); }
       if (!data?.ok) throw ramah(data?.pesan || 'Struknya belum bisa dibaca');
       return data.data;
@@ -85,7 +88,7 @@ function RL() {
 }
 
 function PV() { // data contoh di memori, hanya saat IS_PREVIEW = true
-  const kat = [{ id: 'k1', nama: 'Makan', warna: '#1E3A8A' }, { id: 'k2', nama: 'Belanja', warna: '#3B82C4' }, { id: 'k3', nama: 'Transport', warna: '#E0A030' }, { id: 'k4', nama: 'Lainnya', warna: '#D9645A' }];
+  const kat = [{ id: 'k1', nama: 'Makan & Minum', warna: '#1E3A8A' }, { id: 'k2', nama: 'Belanja Harian', warna: '#3B82C4' }, { id: 'k3', nama: 'Transportasi', warna: '#E0A030' }, { id: 'k5', nama: 'Tagihan', warna: '#0E9F8E' }, { id: 'k6', nama: 'Kesehatan', warna: '#D9645A' }, { id: 'k7', nama: 'Rumah Tangga', warna: '#4CAF7A' }, { id: 'k8', nama: 'Hiburan', warna: '#E57AA8' }, { id: 'k9', nama: 'Pendidikan', warna: '#6C7FD8' }, { id: 'k4', nama: 'Lainnya', warna: '#8A94A6' }];
   const H = hari(), M = blnAwal(H); let n = 50;
   const cat = [['Indomaret', 'k2', 87500, 7919, 'foto', 0, [['Susu UHT 1L', 2, 38000], ['Roti tawar', 1, 17500], ['Telur 1/2 kg', 1, 24000]]], ['Warung Bu Tini', 'k1', 42000, 0, 'foto', 0], ['Pertamina', 'k3', 100000, 0, 'foto', 1], ['Sate Pak Slamet', 'k1', 65000, 0, 'manual', 1], ['Bakso Joss', 'k1', 99900, 0, 'bagi', 1], ['Alfamart', 'k2', 210000, 18900, 'foto', 2], ['Gojek', 'k3', 38000, 0, 'manual', 3], ['Apotek K24', 'k4', 156000, 0, 'foto', 4], ['Kopi Kenangan', 'k1', 52000, 4700, 'foto', 5], ['Toko Buku', 'k4', 120000, 0, 'manual', 33]].map((r, i) => ({ id: 'c' + i, toko: r[0], kategori_id: r[1], total: r[2], ppn: r[3], sumber: r[4], tanggal: tHari(H, -r[5]), barang: (r[6] || []).map(b => ({ nama: b[0], jumlah: b[1], harga: b[2] })) }));
   let ang = [{ kunci: 'total', kategori_id: null, batas: 5000000, berlaku_mulai: M }, { kunci: 'k1', kategori_id: 'k1', batas: 500000, berlaku_mulai: M }, { kunci: 'k2', kategori_id: 'k2', batas: 400000, berlaku_mulai: M }, { kunci: 'k3', kategori_id: 'k3', batas: 140000, berlaku_mulai: M }];
@@ -94,7 +97,10 @@ function PV() { // data contoh di memori, hanya saat IS_PREVIEW = true
   const w = x => new Promise(r => setTimeout(() => r(x), 150));
   return {
     sesi: async () => null, masuk: async () => ({ id: 'u1', email: 'vira@email.com' }), keluar: async () => { }, sandi: async () => { }, peng: async () => ({ tema: 'auto', sandi_diganti: true, nama: 'Vira' }), setPeng: async () => { },
-    kategori: async () => kat,
+    kategori: async () => kat.slice(),
+    katSimpan: async o => { if (o.id) Object.assign(kat.find(k => k.id === o.id), { nama: o.nama, warna: o.warna }); else kat.push({ id: 'k' + ++n, nama: o.nama, warna: o.warna }); await w(); },
+    katHapus: async (id, p) => { if (p) cat.forEach(c => { if (c.kategori_id === id) c.kategori_id = p; }); else if (cat.some(c => c.kategori_id === id)) throw ramah('Masih dipakai'); kat.splice(kat.findIndex(k => k.id === id), 1); await w(); },
+    katUrut: async ids => { kat.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)); await w(); },
     catatan: async ({ dari, sampai, q, kat: k, hal = 0, per = 30 }) => { let r = cat.filter(c => (!dari || c.tanggal >= dari) && (!sampai || c.tanggal < sampai) && (!k || c.kategori_id === k) && (!q || c.toko.toLowerCase().includes(q.toLowerCase()))).sort((a, b) => b.tanggal.localeCompare(a.tanggal)); return w({ rows: r.slice(hal * per, hal * per + per), total: r.length }); },
     satu: async id => w(JSON.parse(JSON.stringify(cat.find(c => c.id === id)))),
     simpan: async o => { const r = { ...o, id: o.id || 'c' + ++n }; const i = cat.findIndex(c => c.id === r.id); i < 0 ? cat.push(r) : cat[i] = r; return w(r.id); },
@@ -105,7 +111,7 @@ function PV() { // data contoh di memori, hanya saat IS_PREVIEW = true
     tagihan: async () => w(tg), tagihanDetail: async id => w(tg.find(t => t.id === id)),
     simpanT: async o => { const id = 't' + ++n; tg.unshift({ ...o, id, total: o.subtotal + o.ppn, tagihan_peserta: o.peserta.map((p, i) => ({ ...p, urutan: i })), tagihan_barang: o.barang }); return w(id); },
     hapusT: async id => { tg = tg.filter(t => t.id !== id); await w(); }, terakhir: async () => null, jejak: async () => { },
-    excel: async () => cat, baca: async () => w({ toko: 'Indomaret Point', tanggal: H, total: 87500, ppn: 7919, kategori: 'Belanja', perlu_cek: false, barang: [{ nama: 'Susu UHT 1L', jumlah: 2, harga: 38000 }, { nama: 'Roti tawar', jumlah: 1, harga: 17500 }, { nama: 'Telur 1/2 kg', jumlah: 1, harga: 24000 }] }),
+    excel: async () => cat, baca: async () => w({ toko: 'Indomaret Point', tanggal: H, total: 87500, ppn: 7919, kategori: 'Belanja Harian', perlu_cek: false, barang: [{ nama: 'Susu UHT 1L', jumlah: 2, harga: 38000 }, { nama: 'Roti tawar', jumlah: 1, harga: 17500 }, { nama: 'Telur 1/2 kg', jumlah: 1, harga: 24000 }] }),
   };
 }
 
@@ -113,7 +119,7 @@ function PV() { // data contoh di memori, hanya saat IS_PREVIEW = true
 const S = { u: null, set: { tema: 'auto' }, kat: [], cur: null, tok: 0, ip: null };
 const ramah = m => { const e = new Error(m); e.ramah = 1; return e; };
 const A = IS_PREVIEW ? PV() : RL();
-const kn = id => S.kat.find(k => k.id === id) || { nama: 'Lainnya', warna: '#D9645A' };
+const kn = id => S.kat.find(k => k.id === id) || { nama: 'Lainnya', warna: '#8A94A6' };
 function pesan(e) {
   if (e?.ramah) return e.message;
   if (e?.status === 401 || e?.code === 'PGRST301' || /jwt/i.test(e?.message || '')) { S.u = null; go('masuk', 0, true); return 'Sesi habis, masuk lagi ya'; }
@@ -145,7 +151,7 @@ const baris = c => `<button class="item" data-a="buka" data-id="${E(c.id)}"><spa
 function pickB(rows, kunci, tgl) { const r = (rows || []).filter(x => x.kunci === kunci && x.berlaku_mulai <= tgl).sort((a, b) => b.berlaku_mulai.localeCompare(a.berlaku_mulai))[0]; return r ? Number(r.batas) : 0; }
 
 // ===== NAVIGASI =====
-const TAB = { beranda: 'beranda', namaku: 'beranda', daftar: 'beranda', pengaturan: 'beranda', unduh: 'beranda', laporan: 'laporan', anggaran: 'anggaran', aturAnggaran: 'anggaran', bagi: 'bagi', riwayat: 'bagi', tagihanDetail: 'bagi' };
+const TAB = { beranda: 'beranda', namaku: 'beranda', kategori: 'beranda', daftar: 'beranda', pengaturan: 'beranda', unduh: 'beranda', laporan: 'laporan', anggaran: 'anggaran', aturAnggaran: 'anggaran', bagi: 'bagi', riwayat: 'bagi', tagihanDetail: 'bagi' };
 function go(v, p, ganti) { S.cur = [v, p]; history[ganti ? 'replaceState' : 'pushState']({ v, p: p || null }, ''); draw(); }
 addEventListener('popstate', e => { S.cur = e.state ? [e.state.v, e.state.p] : [S.u ? 'beranda' : 'masuk']; if (!S.u && S.cur[0] !== 'masuk') S.cur = ['masuk']; draw(); });
 function nav(v) {
@@ -237,7 +243,7 @@ async function bacaFile(f) {
 R.form = async (p, ok) => {
   let F;
   if (p.id) { loading(); const d = await A.satu(p.id); if (!ok()) return; F = { id: d.id, toko: d.toko, tanggal: d.tanggal, kategori_id: d.kategori_id, total: d.total, ppn: d.ppn, sumber: d.sumber, barang: d.barang }; }
-  else if (p.hasil) { const h = p.hasil; F = { toko: h.toko, tanggal: h.tanggal || hari(), kategori_id: (S.kat.find(k => k.nama === h.kategori) || S.kat[S.kat.length - 1] || {}).id, total: h.total, ppn: h.ppn, sumber: 'foto', barang: h.barang, cek: h.perlu_cek }; }
+  else if (p.hasil) { const h = p.hasil; F = { toko: h.toko, tanggal: h.tanggal || hari(), kategori_id: (S.kat.find(k => k.nama === h.kategori) || S.kat.find(k => k.nama === 'Lainnya') || S.kat[S.kat.length - 1] || {}).id, total: h.total, ppn: h.ppn, sumber: 'foto', barang: h.barang, cek: h.perlu_cek }; }
   else F = { toko: '', tanggal: hari(), kategori_id: S.kat[0]?.id, total: 0, ppn: 0, sumber: 'manual', barang: [] };
   S.fo = F; const baru = !F.id, judul = p.hasil ? 'Cek hasil bacaan' : baru ? 'Catat manual' : 'Ubah catatan';
   const br = b => `<div class="br row g8" style="margin-top:8px"><input class="in mini fl" data-k="n" placeholder="Nama barang" maxlength="80" value="${E(b.nama)}"><input class="in mini" data-k="j" inputmode="decimal" style="width:52px" aria-label="Jumlah" value="${E(b.jumlah)}"><input class="in mini mn" data-k="h" inputmode="numeric" style="width:92px" aria-label="Harga" value="${fmt(b.harga)}"><button data-a="bx" class="mu" aria-label="Hapus barang">${ic('x', 18)}</button></div>`;
@@ -276,7 +282,7 @@ function waText(d) {
 }
 const kirimWA = t => { const w = open('https://wa.me/?text=' + encodeURIComponent(t), '_blank', 'noopener'); if (!w) location.href = 'https://wa.me/?text=' + encodeURIComponent(t); };
 R.bagi = async () => {
-  S.bg = S.bg || { judul: '', tgl: hari(), mode: 'barang', sub: 0, pct: 11, p: [S.set.nama || 'Saya', ''], items: [], jatah: true, kat: (S.kat.find(k => k.nama === 'Makan') || S.kat[0] || {}).id }; formB();
+  S.bg = S.bg || { judul: '', tgl: hari(), mode: 'barang', sub: 0, pct: 11, p: [S.set.nama || 'Saya', ''], items: [], jatah: true, kat: (S.kat.find(k => /^makan/i.test(k.nama)) || S.kat[0] || {}).id }; formB();
 };
 const nmB = i => S.bg.p[i] || (i ? 'Teman ' + i : S.set.nama || 'Saya');
 const pkB = (b, bi) => S.bg.p.map((_, i) => `<button class="pill ${b.s.includes(i) ? 'on' : ''}" data-a="bchk" data-b="${bi}" data-i="${i}">${E(nmB(i))}</button>`).join('') + `<span class="mu s12">${b.s.length ? '' : 'dibagi semua'}</span>`;
@@ -395,12 +401,24 @@ async function bikinXlsx() {
   const bl = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), a = document.createElement('a'); a.href = URL.createObjectURL(bl); a.download = `Tracker-Money-${nm}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   await A.jejak('unduh_excel'); toast('File Excel sudah diunduh');
 }
+const WARNA = ['#1E3A8A', '#3B82C4', '#E0A030', '#0E9F8E', '#D9645A', '#4CAF7A', '#E57AA8', '#6C7FD8', '#8A94A6', '#C2570C', '#2F5BD3', '#7A5C3E'];
+R.kategori = () => {
+  const n = S.kat.length, ar = (i, d, nm) => `<button class="ib" style="width:36px;height:36px;box-shadow:none;background:var(--chip);${(d < 0 ? i === 0 : i === n - 1) ? 'opacity:.3' : ''}" data-a="kgeser" data-i="${i}" data-d="${d}" ${(d < 0 ? i === 0 : i === n - 1) ? 'disabled' : ''} aria-label="${nm}">${ic(d < 0 ? 'up' : 'dn', 18)}</button>`;
+  render(`${head('Atur kategori', ibtn('kbaru', 'plus', 'Tambah kategori'))}<div class="card" style="padding:2px 16px">${S.kat.map((k, i) => `<div class="row" style="padding:10px 0;${i < n - 1 ? 'border-bottom:1px solid var(--ln)' : ''}"><i style="width:14px;height:14px;border-radius:7px;background:${E(k.warna)};flex:none"></i><button class="fl b" style="text-align:left;font-size:14px;padding:8px 0" data-a="kedit" data-id="${E(k.id)}">${E(k.nama)}</button>${ar(i, -1, 'Naikkan')}${ar(i, 1, 'Turunkan')}</div>`).join('')}</div>
+  <div class="note">Ketuk nama untuk mengganti nama, warna, atau menghapus. Pakai panah untuk mengubah urutan. Kategori ini hanya untuk akunmu.</div><div class="mt2">${btn('kbaru', ic('plus', 20) + 'Tambah kategori')}</div>`);
+};
+function modalKat(k) {
+  S.ke = { id: k?.id || null, warna: k?.warna || WARNA[S.kat.length % WARNA.length], nama: k?.nama || '' };
+  modal(`<div class="b" style="font-size:18px">${k ? 'Ubah kategori' : 'Kategori baru'}</div><div class="f"><label>Nama</label><input class="in" id="kn" maxlength="30" placeholder="Misal: Kucing" value="${E(S.ke.nama)}"></div>
+  <div class="f"><label>Warna</label><div class="row" style="flex-wrap:wrap;gap:10px">${WARNA.map(w => `<button data-a="kwarna" data-w="${w}" aria-label="Pilih warna" style="width:34px;height:34px;border-radius:17px;background:${w};outline:${w === S.ke.warna ? '3px solid var(--tx)' : 'none'};outline-offset:2px"></button>`).join('')}</div></div>
+  <div class="mt2">${btn('ksimpan', 'Simpan', '', '', 'Menyimpan…')}</div>${k ? `<div class="mt">${btn('khapus', 'Hapus kategori ini', 'r', '', 'Memeriksa…')}</div>` : ''}<div class="mt">${btn('tutup', 'Batal', 'o')}</div>`);
+}
 R.pengaturan = () => {
   const t = S.set.tema, mini = (k, n) => `<button class="${t === k ? 'on' : ''}" data-a="tema2" data-v="${k}" style="padding:6px 10px;border-radius:15px;font-size:12px;font-weight:700;${t === k ? 'background:var(--pb);color:#fff' : 'color:var(--mu)'}">${n}</button>`;
   const it = (a, n, s, x = '') => `<button class="row sp" style="width:100%;text-align:left;padding:14px 0;border-bottom:1px solid var(--ln)" data-a="${a}" ${x}><span><div class="b s13" style="font-size:14px">${n}</div>${s ? `<div class="mu s12" style="margin-top:2px">${s}</div>` : ''}</span><span class="mu">${ic('chev', 18)}</span></button>`;
   render(`${head('Pengaturan')}<div class="card row"><div class="sw" style="width:48px;height:48px;border-radius:24px;background:var(--hg);font-size:18px">${E((S.set.nama || S.u?.email || 'U')[0].toUpperCase())}</div><div class="fl"><div class="b" style="font-size:15px">${E(S.set.nama || (S.u?.email || '').split('@')[0])}</div><div class="mu s12" style="overflow:hidden;text-overflow:ellipsis">${E(S.u?.email || '')}</div></div></div>
   <div class="card" style="padding:2px 16px"><div class="row sp" style="padding:14px 0;border-bottom:1px solid var(--ln)"><div class="b s13" style="font-size:14px">Tampilan</div><div class="row" style="padding:3px;border-radius:18px;background:var(--chip)">${mini('auto', 'Otomatis')}${mini('terang', 'Terang')}${mini('gelap', 'Gelap')}</div></div>
-  ${it('nav', 'Nama panggilan', E(S.set.nama || 'Belum diisi'), 'data-v="namaku" data-sk="1"')}${it('nav', 'Ganti kata sandi', '', 'data-v="gantiSandi" data-sk="1"')}${it('nav', 'Unduh Excel', 'Cadangan datamu', 'data-v="unduh"')}${it('nav', 'Riwayat tagihan', '', 'data-v="riwayat"')}${it('pasang', 'Pasang di layar HP', 'Cara pasang aplikasi')}<button class="b s13" style="width:100%;text-align:left;padding:14px 0;color:#C23B3B;font-size:14px" data-a="keluar">Keluar</button></div><div class="c mu s12 mt">Tracker Money · versi 1.0</div>`);
+  ${it('nav', 'Nama panggilan', E(S.set.nama || 'Belum diisi'), 'data-v="namaku" data-sk="1"')}${it('nav', 'Atur kategori', S.kat.length + ' kategori', 'data-v="kategori"')}${it('nav', 'Ganti kata sandi', '', 'data-v="gantiSandi" data-sk="1"')}${it('nav', 'Unduh Excel', 'Cadangan datamu', 'data-v="unduh"')}${it('nav', 'Riwayat tagihan', '', 'data-v="riwayat"')}${it('pasang', 'Pasang di layar HP', 'Cara pasang aplikasi')}<button class="b s13" style="width:100%;text-align:left;padding:14px 0;color:#C23B3B;font-size:14px" data-a="keluar">Keluar</button></div><div class="c mu s12 mt">Tracker Money · versi 1.0</div>`);
 };
 
 // ===== AKSI (klik) =====
@@ -441,6 +459,20 @@ const H = {
   uunduh: b => busy(b, bikinXlsx),
   pasang: () => { const sdh = matchMedia('(display-mode: standalone)').matches || navigator.standalone; modal(`<div class="b" style="font-size:18px">Pasang di layar HP</div>${sdh ? '<div class="note g">Aplikasi sudah terpasang di perangkat ini.</div>' : `${S.ip ? `<div class="mt">${btn('ipasang', 'Pasang sekarang')}</div>` : ''}<div class="s13 mt" style="line-height:1.7"><b>iPhone / iPad (Safari):</b> ketuk tombol Bagikan (kotak dengan panah ke atas), lalu pilih "Tambah ke Layar Utama".<br><b>Android (Chrome):</b> ketuk menu titik tiga, lalu "Instal aplikasi".<br><b>Laptop / PC (Chrome atau Edge):</b> klik ikon pasang di sebelah kanan kolom alamat.</div>`}<div class="mt2">${btn('tutup', 'Tutup', 'o')}</div>`); },
   ipasang: async () => { if (S.ip) { S.ip.prompt(); await S.ip.userChoice.catch(() => { }); S.ip = null; } tutup(); },
+  kbaru: () => modalKat(null), kedit: b => modalKat(S.kat.find(k => k.id === b.dataset.id)),
+  kwarna: b => { S.ke.warna = b.dataset.w; document.querySelectorAll('[data-a=kwarna]').forEach(x => x.style.outline = x.dataset.w === S.ke.warna ? '3px solid var(--tx)' : 'none'); },
+  ksimpan: b => busy(b, async () => {
+    const nm = $('#kn').value.trim().replace(/\s+/g, ' '); if (!nm) throw ramah('Isi nama kategorinya dulu');
+    if (S.kat.some(k => k.id !== S.ke.id && k.nama.toLowerCase() === nm.toLowerCase())) throw ramah('Nama kategori itu sudah ada');
+    await A.katSimpan({ id: S.ke.id, nama: nm, warna: S.ke.warna, urutan: S.kat.length + 1 }); S.kat = await A.kategori(); tutup(); toast('Kategori tersimpan'); R.kategori();
+  }),
+  khapus: b => busy(b, async () => {
+    if (S.kat.length <= 1) throw ramah('Minimal harus ada satu kategori'); const k = S.ke, jml = (await A.catatan({ kat: k.id, per: 1 })).total, lain = S.kat.filter(x => x.id !== k.id), def = (lain.find(x => x.nama === 'Lainnya') || lain[0]).id;
+    modal(`<div class="b" style="font-size:18px">Hapus kategori ${E(k.nama)}?</div>${jml ? `<div class="mu s13 mt" style="line-height:1.5">Ada ${jml} catatan di kategori ini. Supaya tidak hilang, catatan itu dipindah ke:</div><div class="f"><select class="in" id="kp">${lain.map(x => `<option value="${E(x.id)}" ${x.id === def ? 'selected' : ''}>${E(x.nama)}</option>`).join('')}</select></div>` : '<div class="mu s13 mt">Belum ada catatan di kategori ini.</div>'}<div class="mu s12 mt">Batas anggaran untuk kategori ini ikut terhapus.</div>
+    <div class="mt2">${btn('khapus2', jml ? 'Pindahkan dan hapus' : 'Ya, hapus', '', '', 'Menghapus…')}</div><div class="mt">${btn('tutup', 'Batal', 'o')}</div>`);
+  }),
+  khapus2: b => busy(b, async () => { await A.katHapus(S.ke.id, $('#kp')?.value || null); S.kat = await A.kategori(); tutup(); toast('Kategori dihapus'); R.kategori(); }),
+  kgeser: b => busy(b, async () => { const i = +b.dataset.i, j = i + +b.dataset.d, a = S.kat.slice(); if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; await A.katUrut(a.map(k => k.id)); S.kat = a; R.kategori(); }),
   keluar: () => modal(`<div class="b" style="font-size:18px">Keluar dari aplikasi?</div><div class="mt2">${btn('keluar2', 'Ya, keluar', '', '', 'Keluar…')}</div><div class="mt">${btn('tutup', 'Batal', 'o')}</div>`),
   keluar2: b => busy(b, async () => { await A.keluar(); S.u = null; S.bg = null; tutup(); go('masuk', 0, true); }),
 };
