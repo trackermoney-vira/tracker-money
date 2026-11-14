@@ -44,7 +44,7 @@ function RL() {
     masuk: async (e, p) => ok(await sb.auth.signInWithPassword({ email: e, password: p })).user,
     keluar: () => sb.auth.signOut(),
     sandi: async p => { ok(await sb.auth.updateUser({ password: p })); ok(await sb.from('pengaturan').update({ sandi_diganti: true }).eq('user_id', S.u.id)); await jejak('ganti_sandi'); },
-    peng: async () => ok(await sb.from('pengaturan').select('tema,sandi_diganti').maybeSingle()) || { tema: 'auto', sandi_diganti: false },
+    peng: async () => ok(await sb.from('pengaturan').select('tema,sandi_diganti,nama').maybeSingle()) || { tema: 'auto', sandi_diganti: false, nama: null },
     setPeng: async o => ok(await sb.from('pengaturan').update(o).eq('user_id', S.u.id)),
     kategori: async () => ok(await sb.from('kategori').select('id,nama,warna').order('urutan')),
     catatan: async ({ dari, sampai, q, kat, hal = 0, per = 30 }) => {
@@ -85,7 +85,7 @@ function RL() {
 }
 
 function PV() { // data contoh di memori, hanya saat IS_PREVIEW = true
-  const kat = [{ id: 'k1', nama: 'Makan', warna: '#4B2DA8' }, { id: 'k2', nama: 'Belanja', warna: '#9B7FE8' }, { id: 'k3', nama: 'Transport', warna: '#F29E4C' }, { id: 'k4', nama: 'Lainnya', warna: '#E8618C' }];
+  const kat = [{ id: 'k1', nama: 'Makan', warna: '#1E3A8A' }, { id: 'k2', nama: 'Belanja', warna: '#3B82C4' }, { id: 'k3', nama: 'Transport', warna: '#E0A030' }, { id: 'k4', nama: 'Lainnya', warna: '#D9645A' }];
   const H = hari(), M = blnAwal(H); let n = 50;
   const cat = [['Indomaret', 'k2', 87500, 7919, 'foto', 0, [['Susu UHT 1L', 2, 38000], ['Roti tawar', 1, 17500], ['Telur 1/2 kg', 1, 24000]]], ['Warung Bu Tini', 'k1', 42000, 0, 'foto', 0], ['Pertamina', 'k3', 100000, 0, 'foto', 1], ['Sate Pak Slamet', 'k1', 65000, 0, 'manual', 1], ['Bakso Joss', 'k1', 99900, 0, 'bagi', 1], ['Alfamart', 'k2', 210000, 18900, 'foto', 2], ['Gojek', 'k3', 38000, 0, 'manual', 3], ['Apotek K24', 'k4', 156000, 0, 'foto', 4], ['Kopi Kenangan', 'k1', 52000, 4700, 'foto', 5], ['Toko Buku', 'k4', 120000, 0, 'manual', 33]].map((r, i) => ({ id: 'c' + i, toko: r[0], kategori_id: r[1], total: r[2], ppn: r[3], sumber: r[4], tanggal: tHari(H, -r[5]), barang: (r[6] || []).map(b => ({ nama: b[0], jumlah: b[1], harga: b[2] })) }));
   let ang = [{ kunci: 'total', kategori_id: null, batas: 5000000, berlaku_mulai: M }, { kunci: 'k1', kategori_id: 'k1', batas: 500000, berlaku_mulai: M }, { kunci: 'k2', kategori_id: 'k2', batas: 400000, berlaku_mulai: M }, { kunci: 'k3', kategori_id: 'k3', batas: 140000, berlaku_mulai: M }];
@@ -93,7 +93,7 @@ function PV() { // data contoh di memori, hanya saat IS_PREVIEW = true
   const rg = (d, s) => cat.filter(c => c.tanggal >= d && c.tanggal < s);
   const w = x => new Promise(r => setTimeout(() => r(x), 150));
   return {
-    sesi: async () => null, masuk: async () => ({ id: 'u1', email: 'vira@email.com' }), keluar: async () => { }, sandi: async () => { }, peng: async () => ({ tema: 'auto', sandi_diganti: true }), setPeng: async () => { },
+    sesi: async () => null, masuk: async () => ({ id: 'u1', email: 'vira@email.com' }), keluar: async () => { }, sandi: async () => { }, peng: async () => ({ tema: 'auto', sandi_diganti: true, nama: 'Vira' }), setPeng: async () => { },
     kategori: async () => kat,
     catatan: async ({ dari, sampai, q, kat: k, hal = 0, per = 30 }) => { let r = cat.filter(c => (!dari || c.tanggal >= dari) && (!sampai || c.tanggal < sampai) && (!k || c.kategori_id === k) && (!q || c.toko.toLowerCase().includes(q.toLowerCase()))).sort((a, b) => b.tanggal.localeCompare(a.tanggal)); return w({ rows: r.slice(hal * per, hal * per + per), total: r.length }); },
     satu: async id => w(JSON.parse(JSON.stringify(cat.find(c => c.id === id)))),
@@ -113,7 +113,7 @@ function PV() { // data contoh di memori, hanya saat IS_PREVIEW = true
 const S = { u: null, set: { tema: 'auto' }, kat: [], cur: null, tok: 0, ip: null };
 const ramah = m => { const e = new Error(m); e.ramah = 1; return e; };
 const A = IS_PREVIEW ? PV() : RL();
-const kn = id => S.kat.find(k => k.id === id) || { nama: 'Lainnya', warna: '#E8618C' };
+const kn = id => S.kat.find(k => k.id === id) || { nama: 'Lainnya', warna: '#D9645A' };
 function pesan(e) {
   if (e?.ramah) return e.message;
   if (e?.status === 401 || e?.code === 'PGRST301' || /jwt/i.test(e?.message || '')) { S.u = null; go('masuk', 0, true); return 'Sesi habis, masuk lagi ya'; }
@@ -132,7 +132,7 @@ async function busy(b, fn) {
 }
 function tema() {
   const t = S.set.tema, g = t === 'gelap' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-  document.documentElement.classList.toggle('dk', g); document.querySelector('meta[name=theme-color]').content = g ? '#15112B' : '#5B3FD0'; return g;
+  document.documentElement.classList.toggle('dk', g); document.querySelector('meta[name=theme-color]').content = g ? '#0B1220' : '#1E3A8A'; return g;
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', tema);
 const head = (t, kanan = '', back = true) => `<div class="top">${back ? `<button class="ib" data-a="back" aria-label="Kembali">${ic('back')}</button>` : ''}<div class="h1 fl" style="font-size:${back ? 20 : 22}px">${E(t)}</div>${kanan}</div>`;
@@ -145,7 +145,7 @@ const baris = c => `<button class="item" data-a="buka" data-id="${E(c.id)}"><spa
 function pickB(rows, kunci, tgl) { const r = (rows || []).filter(x => x.kunci === kunci && x.berlaku_mulai <= tgl).sort((a, b) => b.berlaku_mulai.localeCompare(a.berlaku_mulai))[0]; return r ? Number(r.batas) : 0; }
 
 // ===== NAVIGASI =====
-const TAB = { beranda: 'beranda', daftar: 'beranda', pengaturan: 'beranda', unduh: 'beranda', laporan: 'laporan', anggaran: 'anggaran', aturAnggaran: 'anggaran', bagi: 'bagi', riwayat: 'bagi', tagihanDetail: 'bagi' };
+const TAB = { beranda: 'beranda', namaku: 'beranda', daftar: 'beranda', pengaturan: 'beranda', unduh: 'beranda', laporan: 'laporan', anggaran: 'anggaran', aturAnggaran: 'anggaran', bagi: 'bagi', riwayat: 'bagi', tagihanDetail: 'bagi' };
 function go(v, p, ganti) { S.cur = [v, p]; history[ganti ? 'replaceState' : 'pushState']({ v, p: p || null }, ''); draw(); }
 addEventListener('popstate', e => { S.cur = e.state ? [e.state.v, e.state.p] : [S.u ? 'beranda' : 'masuk']; if (!S.u && S.cur[0] !== 'masuk') S.cur = ['masuk']; draw(); });
 function nav(v) {
@@ -160,7 +160,7 @@ async function draw() {
 // ===== LAYAR =====
 const R = {};
 R.masuk = () => {
-  render(`<div class="c" style="padding-top:64px"><img src="./icon-192.png" width="84" height="84" alt="" style="border-radius:22px;box-shadow:0 10px 24px rgba(63,42,155,.3)"><div class="h1 mt" style="font-size:26px">Tracker Money</div><div class="mu s13" style="margin-top:4px">Catat pengeluaran tinggal foto struk</div></div>
+  render(`<div class="c" style="padding-top:64px"><img src="./icon-192.png" width="84" height="84" alt="" style="border-radius:22px;box-shadow:0 10px 24px rgba(15,35,71,.25)"><div class="h1 mt" style="font-size:26px">Tracker Money</div><div class="mu s13" style="margin-top:4px">Catat pengeluaran tinggal foto struk</div></div>
   <form id="fm" style="margin-top:30px"><div class="if">${ic('user')}<input id="em" type="email" autocomplete="username" aria-label="Email" placeholder="nama@email.com" maxlength="120"></div>
   <div class="if">${ic('lock')}<input id="pw" type="password" autocomplete="current-password" aria-label="Kata sandi" maxlength="100"><button type="button" data-a="mata" aria-label="Lihat sandi">${ic('eye', 20)}</button></div>
   <div class="mt2"><button class="btn" id="bm" data-ld="Masuk…">Masuk</button></div></form>
@@ -180,13 +180,18 @@ R.gantiSandi = (p) => {
     $('#ck').innerHTML = r.map(([o, t]) => `<div class="row s13" style="margin:6px 0;color:${o ? 'var(--gfg)' : 'var(--mu)'}"><span class="tag ${o ? 'g' : 'n'}" style="padding:2px 4px">${o ? ic('check', 12, 3) : '&nbsp;&nbsp;'}</span>${t}</div>`).join(''); return r.every(x => x[0]); };
   cek(); S.cek = cek;
   $('#fm').onsubmit = ev => ev.preventDefault();
-  $('#bs').onclick = () => busy($('#bs'), async () => { if (!cek()) throw ramah('Kata sandinya belum memenuhi syarat'); await A.sandi($('#p1').value); S.set.sandi_diganti = true; toast('Kata sandi sudah diganti'); p.sukarela ? history.back() : go('beranda', 0, true); });
+  $('#bs').onclick = () => busy($('#bs'), async () => { if (!cek()) throw ramah('Kata sandinya belum memenuhi syarat'); await A.sandi($('#p1').value); S.set.sandi_diganti = true; toast('Kata sandi sudah diganti'); p.sukarela ? history.back() : go(S.set.nama ? 'beranda' : 'namaku', {}, true); });
+};
+R.namaku = p => {
+  render(`${p.sukarela ? head('Nama panggilan') : ''}<div style="padding-top:${p.sukarela ? 20 : 60}px"><div class="h1" style="font-size:24px">Mau dipanggil siapa?</div><div class="mu s13 mt" style="line-height:1.5">Nama ini muncul di Beranda dan sebagai namamu di Bagi tagihan.</div>
+  <div class="if">${ic('user')}<input id="nk" maxlength="30" aria-label="Nama panggilan" placeholder="Misal: Vira" value="${E(S.set.nama || '')}"></div><div class="mt2"><button class="btn" id="bn" data-ld="Menyimpan…">Simpan</button></div></div>`);
+  $('#bn').onclick = () => busy($('#bn'), async () => { const v = $('#nk').value.trim().replace(/\s+/g, ' '); if (!v) throw ramah('Isi nama panggilanmu dulu'); await A.setPeng({ nama: v }); S.set.nama = v; toast('Tersimpan'); p.sukarela ? history.back() : go('beranda', 0, true); });
 };
 R.beranda = async (p, ok) => {
   loading(); const H = hari(), M = blnAwal(H), N = tBln(M, 1);
   const [rs, ag, rec, last] = await Promise.all([A.ringkas(M, N), A.anggaran(), A.catatan({ dari: M, sampai: N, per: 3 }), A.terakhir()]); if (!ok()) return;
   const tot = rs.reduce((s, r) => s + Number(r.jumlah), 0), bt = pickB(ag, 'total', H), jam = +new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Jakarta' }) % 24;
-  const sal = jam < 11 ? 'Selamat pagi' : jam < 15 ? 'Selamat siang' : jam < 18 ? 'Selamat sore' : 'Selamat malam', nm = ((S.u?.email || '').split('@')[0].match(/^[a-zA-Z]+/) || [''])[0]; const Nm = nm ? nm[0].toUpperCase() + nm.slice(1) : '';
+  const sal = jam < 11 ? 'Selamat pagi' : jam < 15 ? 'Selamat siang' : jam < 18 ? 'Selamat sore' : 'Selamat malam'; const Nm = S.set.nama || '';
   const gelap = tema(), C = 213.63; let acc = 0;
   const seg = rs.filter(r => r.jumlah > 0).sort((a, b) => b.jumlah - a.jumlah).map(r => { const l = r.jumlah / tot * C, o = `<circle cx="44" cy="44" r="34" stroke="${E(kn(r.kategori_id).warna)}" stroke-dasharray="${l.toFixed(2)} ${(C - l).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"/>`; acc += l; return [o, r]; });
   const backup = +H.slice(8) <= 7 && rec.rows.length && (!last || last.slice(0, 10) < M);
@@ -256,12 +261,13 @@ function selisih() {
 // ----- Bagi tagihan -----
 function bagiHitung(B) {
   const n = B.p.length; let sub, ex;
-  if (B.mode === 'rata') { sub = B.sub; const pp = Math.round(sub * B.pct / 100); ex = B.p.map(() => (sub + pp) / n); }
+  const PP = x => B.ppnRp != null ? B.ppnRp : Math.round(x * B.pct / 100);
+  if (B.mode === 'rata') { sub = B.sub; const pp = PP(sub); ex = B.p.map(() => (sub + pp) / n); }
   else {
-    sub = B.items.reduce((a, b) => a + b.h, 0); const pp = Math.round(sub * B.pct / 100), se = B.p.map(() => 0);
+    sub = B.items.reduce((a, b) => a + b.h, 0); const pp = PP(sub), se = B.p.map(() => 0);
     B.items.forEach(b => { const k = b.s.length ? b.s : B.p.map((_, i) => i); k.forEach(i => se[i] += b.h / k.length); }); ex = se.map(x => x + (sub ? pp * x / sub : 0));
   }
-  const ppn = Math.round(sub * B.pct / 100), total = sub + ppn, bag = ex.map(Math.floor), sisa = total - bag.reduce((a, b) => a + b, 0); if (bag.length) bag[0] += sisa;
+  const ppn = PP(sub), total = sub + ppn, bag = ex.map(Math.floor), sisa = total - bag.reduce((a, b) => a + b, 0); if (bag.length) bag[0] += sisa;
   return { sub, ppn, total, bag };
 }
 function waText(d) {
@@ -270,23 +276,37 @@ function waText(d) {
 }
 const kirimWA = t => { const w = open('https://wa.me/?text=' + encodeURIComponent(t), '_blank', 'noopener'); if (!w) location.href = 'https://wa.me/?text=' + encodeURIComponent(t); };
 R.bagi = async () => {
-  const B = S.bg = S.bg || { judul: '', tgl: hari(), mode: 'rata', sub: 0, pct: 11, p: ['Saya', ''], items: [{ n: '', h: 0, s: [0, 1] }], jatah: true, kat: (S.kat.find(k => k.nama === 'Makan') || S.kat[0] || {}).id }; formB();
+  S.bg = S.bg || { judul: '', tgl: hari(), mode: 'barang', sub: 0, pct: 11, p: [S.set.nama || 'Saya', ''], items: [], jatah: true, kat: (S.kat.find(k => k.nama === 'Makan') || S.kat[0] || {}).id }; formB();
 };
+const nmB = i => S.bg.p[i] || (i ? 'Teman ' + i : S.set.nama || 'Saya');
+const pkB = (b, bi) => S.bg.p.map((_, i) => `<button class="pill ${b.s.includes(i) ? 'on' : ''}" data-a="bchk" data-b="${bi}" data-i="${i}">${E(nmB(i))}</button>`).join('') + `<span class="mu s12">${b.s.length ? '' : 'dibagi semua'}</span>`;
 function formB() {
-  const B = S.bg, pk = (b, bi) => B.p.map((n, i) => `<button class="chk ${b.s.includes(i) ? 'on' : ''}" data-a="bchk" data-b="${bi}" data-i="${i}" aria-label="${E(n || 'Orang ' + (i + 1))}">${E((n || i + 1 + '')[0].toUpperCase())}</button>`).join('');
+  const B = S.bg, ttl = t => `<div class="b" style="font-size:15px">${t}</div>`;
   render(`${head('Bagi tagihan', ibtn('nav', 'clock', 'Riwayat tagihan', 'data-v="riwayat"'))}
-  <div class="f"><label>Untuk apa</label><input class="in" id="g-j" maxlength="80" placeholder="Misal: makan malam" value="${E(B.judul)}" data-i="bg"></div><div class="f"><label>Tanggal</label><input class="in" id="g-t" type="date" value="${E(B.tgl)}" data-i="bg"></div>
-  <div class="seg"><button class="${B.mode === 'rata' ? 'on' : ''}" data-a="bmode" data-m="rata">Bagi rata</button><button class="${B.mode === 'barang' ? 'on' : ''}" data-a="bmode" data-m="barang">Per barang</button></div>
-  <div class="card"><div class="row sp"><div class="b" style="font-size:15px">Siapa saja</div><button class="b s13" style="color:var(--pr)" data-a="bpt">+ Tambah orang</button></div>
-  ${B.p.map((n, i) => `<div class="row g8" style="margin-top:8px"><input class="in mini fl" data-i="bg" data-k="p" value="${E(n)}" maxlength="40" placeholder="Nama teman ${i}" ${i === 0 ? 'aria-label="Nama saya"' : ''}>${i > 1 ? `<button data-a="bpx" data-i="${i}" class="mu" aria-label="Hapus orang">${ic('x', 18)}</button>` : ''}</div>`).join('')}</div>
+  <div class="card"><div class="row sp">${ttl('1. Siapa saja yang ikut')}<button class="b s13" style="color:var(--pr)" data-a="bpt">+ Tambah</button></div>
+  ${B.p.map((n, i) => `<div class="row g8" style="margin-top:8px"><input class="in mini fl" data-i="bg" data-k="p" value="${E(n)}" maxlength="40" placeholder="${i ? 'Nama teman' : 'Namamu'}" aria-label="${i ? 'Nama teman ' + i : 'Namamu'}">${i === 0 ? '<span class="tag n">kamu</span>' : i > 1 ? `<button data-a="bpx" data-i="${i}" class="mu" aria-label="Hapus orang">${ic('x', 18)}</button>` : ''}</div>`).join('')}</div>
+  <div class="card">${ttl('2. Isi tagihannya')}<div class="seg" style="box-shadow:none;background:var(--chip);margin-top:10px"><button class="${B.mode === 'barang' ? 'on' : ''}" data-a="bmode" data-m="barang">Per barang</button><button class="${B.mode === 'rata' ? 'on' : ''}" data-a="bmode" data-m="rata">Bagi rata</button></div>
   ${B.mode === 'rata' ? `<div class="f"><label>Jumlah tagihan sebelum PPN</label><input class="in mn" id="g-s" inputmode="numeric" data-i="bg" value="${fmt(B.sub)}"></div>`
-    : `<div class="card"><div class="row sp"><div class="b" style="font-size:15px">Barang</div><button class="b s13" style="color:var(--pr)" data-a="bit">+ Tambah barang</button></div><div class="mu s12" style="margin-top:4px">Ketuk huruf untuk memilih siapa yang ikut makan atau pakai barang itu.</div>${B.items.map((b, bi) => `<div style="margin-top:10px"><div class="row g8"><input class="in mini fl" data-i="bg" data-k="n" data-b="${bi}" placeholder="Nama barang" maxlength="80" value="${E(b.n)}"><input class="in mini mn" data-i="bg" data-k="h" data-b="${bi}" inputmode="numeric" style="width:100px" aria-label="Harga" value="${fmt(b.h)}">${B.items.length > 1 ? `<button data-a="bix" data-b="${bi}" class="mu" aria-label="Hapus barang">${ic('x', 18)}</button>` : ''}</div><div class="row g8" style="margin-top:6px">${pk(b, bi)}</div></div>`).join('')}</div>`}
-  <div class="f"><label>PPN (%)</label><input class="in" id="g-p" inputmode="decimal" data-i="bg" value="${E(String(B.pct).replace('.', ','))}" style="width:110px"></div>
+    : `<div class="mt">${btn('bfoto', ic('cam', 20) + 'Foto struk tagihan', '', '', 'Membaca struk…')}</div><input id="bf" type="file" accept="image/*" capture="environment" hidden><input id="bf2" type="file" accept="image/*" hidden><div class="c mt"><button class="b s13" style="color:var(--pr)" data-a="bgal">atau pilih foto dari galeri</button></div>
+    ${B.items.length ? `<div class="mu s12 mt" style="line-height:1.5">3. Ketuk nama orang yang ikut makan atau pakai tiap barang. Kalau tidak ada yang dipilih, barang dibagi ke semua.</div>` : '<div class="mu s13 c mt" style="line-height:1.5">Belum ada barang. Foto struknya, atau tambah barang satu per satu.</div>'}
+    ${B.items.map((b, bi) => `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--ln)"><div class="row g8"><input class="in mini fl" data-i="bg" data-k="n" data-b="${bi}" placeholder="Nama barang" maxlength="80" value="${E(b.n)}"><input class="in mini mn" data-i="bg" data-k="h" data-b="${bi}" inputmode="numeric" style="width:100px" aria-label="Harga" placeholder="Harga" value="${fmt(b.h)}"><button data-a="bix" data-b="${bi}" class="mu" aria-label="Hapus barang">${ic('x', 18)}</button></div><div class="row pk" data-b="${bi}" style="flex-wrap:wrap;gap:6px;margin-top:8px">${pkB(b, bi)}</div></div>`).join('')}
+    <div class="mt"><button class="b s13" style="color:var(--pr)" data-a="bit">+ Tambah barang manual</button></div>`}</div>
+  <div class="card">${ttl('Detail')}<div class="f"><label>Untuk apa</label><input class="in" id="g-j" maxlength="80" placeholder="Misal: makan malam" value="${E(B.judul)}" data-i="bg"></div><div class="row g8"><div class="f fl"><label>Tanggal</label><input class="in" id="g-t" type="date" value="${E(B.tgl)}" data-i="bg"></div><div class="f" style="width:100px"><label>PPN (%)</label><input class="in" id="g-p" inputmode="decimal" data-i="bg" value="${E(String(B.pct).replace('.', ','))}"></div></div></div>
   <div class="card" id="gh"></div>
-  <label class="row mt s13" style="gap:10px"><input type="checkbox" id="g-sv" ${B.jatah ? 'checked' : ''} data-i="bg" style="width:20px;height:20px">Simpan jatah saya sebagai pengeluaran</label>
-  <div class="f" id="gk" style="${B.jatah ? '' : 'display:none'}"><label>Kategori jatah saya</label><select class="in" id="g-k" data-i="bg">${opsiKat(B.kat)}</select></div>
+  <label class="row mt s13" style="gap:10px"><input type="checkbox" id="g-sv" ${B.jatah ? 'checked' : ''} data-i="bg" style="width:20px;height:20px">Simpan bagianku sebagai pengeluaran</label>
+  <div class="f" id="gk" style="${B.jatah ? '' : 'display:none'}"><label>Kategori bagianku</label><select class="in" id="g-k" data-i="bg">${opsiKat(B.kat)}</select></div>
   <div class="mt2">${btn('bsimpan', 'Simpan tagihan', '', '', 'Menyimpan…')}</div><div class="mt">${btn('bwa', WA + 'Kirim rincian ke WhatsApp', 'wa')}</div>`);
+  ['#bf', '#bf2'].forEach(k => { const el = $(k); if (el) el.onchange = () => { const f = el.files[0]; el.value = ''; if (f) fotoB(f); }; });
   hitB();
+}
+function fotoB(f) {
+  busy($('[data-a=bfoto]'), async () => {
+    const h = await A.baca(await kecil(f), 'image/jpeg'), B = bacaB(), it = (h.barang || []).filter(x => x.harga > 0), sub = it.reduce((a, x) => a + x.harga, 0);
+    if (!B.judul) B.judul = h.toko || ''; if (h.tanggal) B.tgl = h.tanggal;
+    if (!it.length) { B.mode = 'rata'; B.sub = h.total - h.ppn; B.ppnRp = h.ppn || null; B.pct = h.total - h.ppn > 0 && h.ppn ? Math.round(h.ppn / (h.total - h.ppn) * 10000) / 100 : 0; formB(); toast('Barangnya tidak terbaca, jadi dibagi rata. Cek jumlahnya ya.'); return; }
+    B.mode = 'barang'; B.items = it.map(x => ({ n: x.nama + (x.jumlah > 1 ? ' ×' + String(x.jumlah).replace('.', ',') : ''), h: x.harga, s: [] }));
+    B.pct = h.ppn > 0 && sub > 0 ? Math.round(h.ppn / sub * 10000) / 100 : 0; B.ppnRp = h.ppn > 0 ? h.ppn : null; formB(); toast('Struk terbaca. Sekarang ketuk nama di tiap barang.');
+  });
 }
 function bacaB() {
   const B = S.bg; B.judul = $('#g-j').value.trim(); B.tgl = $('#g-t').value; B.pct = Math.min(100, Math.max(0, Number(String($('#g-p').value).replace(',', '.')) || 0)); B.jatah = $('#g-sv').checked; B.kat = $('#g-k').value;
@@ -294,12 +314,12 @@ function bacaB() {
   document.querySelectorAll('[data-k=n][data-b]').forEach(e => B.items[+e.dataset.b].n = e.value.trim()); document.querySelectorAll('[data-k=h][data-b]').forEach(e => B.items[+e.dataset.b].h = num(e.value)); $('#gk').style.display = B.jatah ? '' : 'none'; return B;
 }
 function hitB() {
-  const B = bacaB(), r = bagiHitung(B), nm = i => B.p[i] || (i ? 'Teman ' + i : 'Saya');
-  $('#gh').innerHTML = `<div class="b" style="font-size:15px">Bagian masing-masing</div>${B.p.map((_, i) => `<div class="row sp" style="margin-top:10px"><span class="row g8"><span class="av" style="width:34px;height:34px;border-radius:12px">${E(nm(i)[0].toUpperCase())}</span><span class="b s13">${E(nm(i))}</span></span><b>${rp(r.bag[i])}</b></div>`).join('')}
+  const B = bacaB(), r = bagiHitung(B); document.querySelectorAll('.pk').forEach(e => e.innerHTML = pkB(B.items[+e.dataset.b], +e.dataset.b));
+  $('#gh').innerHTML = `<div class="b" style="font-size:15px">Bagian masing-masing</div>${B.p.map((_, i) => `<div class="row sp" style="margin-top:10px"><span class="row g8"><span class="av" style="width:34px;height:34px;border-radius:12px">${E(nmB(i)[0].toUpperCase())}</span><span class="b s13">${E(nmB(i))}</span></span><b>${rp(r.bag[i])}</b></div>`).join('')}
   <div class="s12 mu" style="margin-top:12px;border-top:1px solid var(--ln);padding-top:10px;line-height:1.6">Sebelum PPN ${rp(r.sub)}<br>PPN ${String(B.pct).replace('.', ',')}% ${rp(r.ppn)}<br><b style="color:var(--tx)">Total ${rp(r.total)}</b></div>`; return r;
 }
 function dataB() {
-  const B = bacaB(), r = bagiHitung(B), nm = i => B.p[i] || (i ? 'Teman ' + i : 'Saya');
+  const B = bacaB(), r = bagiHitung(B), nm = nmB;
   if (!B.judul) throw ramah('Isi dulu untuk apa tagihannya'); if (B.p.length < 2) throw ramah('Minimal 2 orang'); if (B.p.some((n, i) => i > 0 && !n)) throw ramah('Isi nama semua temannya dulu');
   if (r.sub <= 0) throw ramah(B.mode === 'rata' ? 'Isi jumlah tagihannya dulu' : 'Isi harga barangnya dulu');
   if (B.mode === 'barang' && B.items.some(b => b.h > 0 && !b.n)) throw ramah('Ada barang yang belum diberi nama');
@@ -335,9 +355,9 @@ R.laporan = async (p, ok) => {
 function grafik(lab, v) {
   const W = 310, mx = Math.max(...v, 1), n = v.length, x = i => n === 1 ? W / 2 : 20 + i * (W - 40) / (n - 1), y = a => 110 - a / (mx * 1.1) * 80, hi = v.indexOf(Math.max(...v));
   const pts = v.map((a, i) => `${x(i).toFixed(1)},${y(a).toFixed(1)}`).join(' '), lb = rpS(v[hi]), bw = lb.length * 6.4 + 16;
-  return `<svg width="100%" height="150" viewBox="0 0 ${W} 150" style="margin-top:6px" role="img" aria-label="Grafik pengeluaran. Tertinggi ${E(lb)} pada ${E(lab[hi])}"><defs><linearGradient id="ar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5B3FD0" stop-opacity=".28"/><stop offset="1" stop-color="#5B3FD0" stop-opacity="0"/></linearGradient></defs>
+  return `<svg width="100%" height="150" viewBox="0 0 ${W} 150" style="margin-top:6px" role="img" aria-label="Grafik pengeluaran. Tertinggi ${E(lb)} pada ${E(lab[hi])}"><defs><linearGradient id="ar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--pb)" stop-opacity=".22"/><stop offset="1" style="stop-color:var(--pb)" stop-opacity="0"/></linearGradient></defs>
   <g style="stroke:var(--ln)"><line x1="0" y1="30" x2="${W}" y2="30"/><line x1="0" y1="70" x2="${W}" y2="70"/><line x1="0" y1="110" x2="${W}" y2="110"/></g><polygon points="${x(0)},110 ${pts} ${x(n - 1)},110" fill="url(#ar)"/><polyline points="${pts}" fill="none" style="stroke:var(--pr)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  ${v.map((a, i) => i === hi ? '' : `<circle cx="${x(i)}" cy="${y(a)}" r="3.5" style="fill:var(--card);stroke:var(--pr)" stroke-width="2"/>`).join('')}<circle cx="${x(hi)}" cy="${y(v[hi])}" r="6" fill="#5B3FD0" style="stroke:var(--card)" stroke-width="2.5"/>
+  ${v.map((a, i) => i === hi ? '' : `<circle cx="${x(i)}" cy="${y(a)}" r="3.5" style="fill:var(--card);stroke:var(--pr)" stroke-width="2"/>`).join('')}<circle cx="${x(hi)}" cy="${y(v[hi])}" r="6" style="fill:var(--pb);stroke:var(--card)" stroke-width="2.5"/>
   <rect x="${Math.min(W - bw, Math.max(0, x(hi) - bw / 2))}" y="0" width="${bw}" height="18" rx="9" style="fill:var(--tx)"/><text x="${Math.min(W - bw, Math.max(0, x(hi) - bw / 2)) + bw / 2}" y="12.5" text-anchor="middle" font-size="11" font-weight="700" style="fill:var(--bgs)">${E(lb)}</text>
   <g font-size="10" text-anchor="middle" style="fill:var(--mu)">${lab.map((l, i) => `<text x="${x(i)}" y="132" ${i === hi ? 'font-weight="800" style="fill:var(--tx)"' : ''}>${E(l)}</text>`).join('')}</g></svg>`;
 }
@@ -345,7 +365,7 @@ R.anggaran = async (p, ok) => {
   loading(); const H = hari(), M = blnAwal(H), [ag, rs] = await Promise.all([A.anggaran(), A.ringkas(M, tBln(M, 1))]); if (!ok()) return;
   const tot = rs.reduce((a, r) => a + Number(r.jumlah), 0), bt = pickB(ag, 'total', H), pc = bt ? Math.min(100, Math.round(tot / bt * 100)) : 0, C = 213.63, st = (x, b) => { const q = b ? x / b * 100 : 0; return { q: Math.round(q), t: q >= 100 ? '<span class="tag r">Lewat batas</span>' : q >= 80 ? '<span class="tag w">Hampir habis</span>' : `<span class="mu s12">${Math.round(q)}%</span>`, c: q >= 100 ? '#C23B3B' : q >= 80 ? '#C2570C' : 'var(--bar)' }; };
   render(`${head('Anggaran', ibtn('nav', 'plus', 'Atur anggaran', 'data-v="aturAnggaran"'), false)}
-  ${bt ? `<div class="hero row sp"><div><div class="s12">${tot > bt ? 'Lewat anggaran ' : 'Sisa anggaran '}${E(bln(M).split(' ')[0])}</div><div class="big">${rp(Math.abs(bt - tot))}</div><div class="s12" style="margin-top:6px">Terpakai ${rp(tot)} dari ${rp(bt)}</div></div><div style="position:relative;width:84px;height:84px;flex:none"><svg width="84" height="84" viewBox="0 0 88 88" role="img" aria-label="${pc} persen anggaran terpakai"><g fill="none" stroke-width="10" transform="rotate(-90 44 44)"><circle cx="44" cy="44" r="34" stroke="rgba(255,255,255,.25)"/><circle cx="44" cy="44" r="34" stroke="#fff" stroke-linecap="round" stroke-dasharray="${(pc / 100 * C).toFixed(1)} ${C}"/></g></svg><div class="c" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:17px">${pc}%</b><span style="font-size:10px;color:#DDD3FA">terpakai</span></div></div></div>`
+  ${bt ? `<div class="hero row sp"><div><div class="s12">${tot > bt ? 'Lewat anggaran ' : 'Sisa anggaran '}${E(bln(M).split(' ')[0])}</div><div class="big">${rp(Math.abs(bt - tot))}</div><div class="s12" style="margin-top:6px">Terpakai ${rp(tot)} dari ${rp(bt)}</div></div><div style="position:relative;width:84px;height:84px;flex:none"><svg width="84" height="84" viewBox="0 0 88 88" role="img" aria-label="${pc} persen anggaran terpakai"><g fill="none" stroke-width="10" transform="rotate(-90 44 44)"><circle cx="44" cy="44" r="34" stroke="rgba(255,255,255,.25)"/><circle cx="44" cy="44" r="34" stroke="#fff" stroke-linecap="round" stroke-dasharray="${(pc / 100 * C).toFixed(1)} ${C}"/></g></svg><div class="c" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:17px">${pc}%</b><span style="font-size:10px;color:rgba(255,255,255,.75)">terpakai</span></div></div></div>`
     : `<div class="hero"><div class="s12">Anggaran ${E(bln(M).split(' ')[0])}</div><div class="big">Belum diatur</div><div class="s12" style="margin-top:6px">Terpakai ${rp(tot)}. Atur batas supaya ada yang mengingatkan.</div></div>`}
   <div class="mt">${S.kat.map(k => { const b = pickB(ag, k.id, H), x = Number((rs.find(r => r.kategori_id === k.id) || {}).jumlah || 0), s = st(x, b); return `<div class="card"><div class="row sp"><div class="b" style="font-size:15px">${E(k.nama)}</div>${b ? s.t : '<span class="mu s12">Belum ada batas</span>'}</div><div class="bar"><i style="width:${b ? Math.min(100, s.q) : 0}%;background:${s.c}"></i></div><div class="row sp s12 mu" style="margin-top:6px"><span>${b ? rp(x) + ' dari ' + rp(b) : 'Terpakai ' + rp(x)}</span>${b ? `<b style="color:var(--tx)">${x > b ? 'Lewat ' + rp(x - b) : 'Sisa ' + rp(b - x)}</b>` : ''}</div></div>`; }).join('')}</div>`);
 };
@@ -359,7 +379,7 @@ let xl;
 const muatXlsx = () => xl || (xl = new Promise((a, b) => { if (window.XLSX) return a(); const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.mini.min.js'; s.onload = a; s.onerror = () => { xl = null; b(ramah('Pembuat Excel belum bisa dimuat. Cek internetmu.')); }; document.head.appendChild(s); }));
 R.unduh = async (p, ok) => {
   loading(); const H = hari(), M = blnAwal(H), [a, b, last] = await Promise.all([A.catatan({ dari: M, sampai: tBln(M, 1), per: 1 }), A.catatan({ per: 1 }), A.terakhir()]); if (!ok()) return; S.ux = { m: 'ini' };
-  const o = (k, t, s) => `<button class="card row" style="width:100%;text-align:left;border:1.5px solid ${k === 'ini' ? '#5B3FD0' : 'transparent'}" data-a="um" data-m="${k}"><span style="width:22px;height:22px;border-radius:11px;border:2px solid ${k === 'ini' ? '#5B3FD0' : 'var(--ln2)'};display:flex;align-items:center;justify-content:center"><i style="width:10px;height:10px;border-radius:5px;background:${k === 'ini' ? '#5B3FD0' : 'transparent'}"></i></span><span><div class="b s13" style="font-size:14px">${t}</div><div class="mu s12" style="margin-top:2px">${s}</div></span></button>`;
+  const o = (k, t, s) => `<button class="card row" style="width:100%;text-align:left;border:1.5px solid ${k === 'ini' ? 'var(--pb)' : 'transparent'}" data-a="um" data-m="${k}"><span style="width:22px;height:22px;border-radius:11px;border:2px solid ${k === 'ini' ? 'var(--pb)' : 'var(--ln2)'};display:flex;align-items:center;justify-content:center"><i style="width:10px;height:10px;border-radius:5px;background:${k === 'ini' ? 'var(--pb)' : 'transparent'}"></i></span><span><div class="b s13" style="font-size:14px">${t}</div><div class="mu s12" style="margin-top:2px">${s}</div></span></button>`;
   render(`${head('Unduh Excel')}<div class="mu s13 mt" style="line-height:1.5">Pilih data yang mau diunduh. File ini juga bisa jadi cadangan datamu.</div><div id="uo">${o('ini', 'Bulan ini', `${E(bln(M))} · ${a.total} catatan`)}${o('tertentu', 'Bulan tertentu', 'Pilih bulan dan tahun')}${o('semua', 'Semua data', `Dari awal sampai hari ini · ${b.total} catatan`)}</div>
   <div class="f" id="ub" style="display:none"><input class="in" id="ub1" type="month" value="${M.slice(0, 7)}" aria-label="Bulan"></div><div class="note">Isi file: lembar Catatan, Barang, dan Ringkasan per kategori.</div>${last ? `<div class="note g">Terakhir diunduh: ${E(new Date(last).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' }))}</div>` : ''}<div class="mt2">${btn('uunduh', 'Unduh sekarang', '', '', 'Menyiapkan…')}</div>`);
 };
@@ -376,11 +396,11 @@ async function bikinXlsx() {
   await A.jejak('unduh_excel'); toast('File Excel sudah diunduh');
 }
 R.pengaturan = () => {
-  const t = S.set.tema, mini = (k, n) => `<button class="${t === k ? 'on' : ''}" data-a="tema2" data-v="${k}" style="padding:6px 10px;border-radius:15px;font-size:12px;font-weight:700;${t === k ? 'background:#5B3FD0;color:#fff' : 'color:var(--mu)'}">${n}</button>`;
+  const t = S.set.tema, mini = (k, n) => `<button class="${t === k ? 'on' : ''}" data-a="tema2" data-v="${k}" style="padding:6px 10px;border-radius:15px;font-size:12px;font-weight:700;${t === k ? 'background:var(--pb);color:#fff' : 'color:var(--mu)'}">${n}</button>`;
   const it = (a, n, s, x = '') => `<button class="row sp" style="width:100%;text-align:left;padding:14px 0;border-bottom:1px solid var(--ln)" data-a="${a}" ${x}><span><div class="b s13" style="font-size:14px">${n}</div>${s ? `<div class="mu s12" style="margin-top:2px">${s}</div>` : ''}</span><span class="mu">${ic('chev', 18)}</span></button>`;
-  render(`${head('Pengaturan')}<div class="card row"><div class="sw" style="width:48px;height:48px;border-radius:24px;background:linear-gradient(135deg,#6A4FD6,#3F2A9B);font-size:18px">${E((S.u?.email || 'U')[0].toUpperCase())}</div><div class="fl"><div class="b" style="font-size:15px">${E((S.u?.email || '').split('@')[0])}</div><div class="mu s12" style="overflow:hidden;text-overflow:ellipsis">${E(S.u?.email || '')}</div></div></div>
+  render(`${head('Pengaturan')}<div class="card row"><div class="sw" style="width:48px;height:48px;border-radius:24px;background:var(--hg);font-size:18px">${E((S.set.nama || S.u?.email || 'U')[0].toUpperCase())}</div><div class="fl"><div class="b" style="font-size:15px">${E(S.set.nama || (S.u?.email || '').split('@')[0])}</div><div class="mu s12" style="overflow:hidden;text-overflow:ellipsis">${E(S.u?.email || '')}</div></div></div>
   <div class="card" style="padding:2px 16px"><div class="row sp" style="padding:14px 0;border-bottom:1px solid var(--ln)"><div class="b s13" style="font-size:14px">Tampilan</div><div class="row" style="padding:3px;border-radius:18px;background:var(--chip)">${mini('auto', 'Otomatis')}${mini('terang', 'Terang')}${mini('gelap', 'Gelap')}</div></div>
-  ${it('nav', 'Ganti kata sandi', '', 'data-v="gantiSandi" data-sk="1"')}${it('nav', 'Unduh Excel', 'Cadangan datamu', 'data-v="unduh"')}${it('nav', 'Riwayat tagihan', '', 'data-v="riwayat"')}${it('pasang', 'Pasang di layar HP', 'Cara pasang aplikasi')}<button class="b s13" style="width:100%;text-align:left;padding:14px 0;color:#C23B3B;font-size:14px" data-a="keluar">Keluar</button></div><div class="c mu s12 mt">Tracker Money · versi 1.0</div>`);
+  ${it('nav', 'Nama panggilan', E(S.set.nama || 'Belum diisi'), 'data-v="namaku" data-sk="1"')}${it('nav', 'Ganti kata sandi', '', 'data-v="gantiSandi" data-sk="1"')}${it('nav', 'Unduh Excel', 'Cadangan datamu', 'data-v="unduh"')}${it('nav', 'Riwayat tagihan', '', 'data-v="riwayat"')}${it('pasang', 'Pasang di layar HP', 'Cara pasang aplikasi')}<button class="b s13" style="width:100%;text-align:left;padding:14px 0;color:#C23B3B;font-size:14px" data-a="keluar">Keluar</button></div><div class="c mu s12 mt">Tracker Money · versi 1.0</div>`);
 };
 
 // ===== AKSI (klik) =====
@@ -400,10 +420,10 @@ const H = {
   }),
   fhapus: () => modal(`<div class="b" style="font-size:18px">Hapus catatan ini?</div><div class="mu s13 mt">Catatan yang dihapus tidak bisa dikembalikan.</div><div class="mt2">${btn('fhapus2', 'Ya, hapus', '', '', 'Menghapus…')}</div><div class="mt">${btn('tutup', 'Batal', 'o')}</div>`),
   fhapus2: b => busy(b, async () => { await A.hapus(S.fo.id); tutup(); toast('Catatan dihapus'); history.back(); }), tutup,
-  bmode: b => { bacaB(); S.bg.mode = b.dataset.m; formB(); }, bpt: () => { bacaB(); S.bg.p.push(''); S.bg.items.forEach(x => x.s.push(S.bg.p.length - 1)); formB(); },
+  bmode: b => { bacaB(); S.bg.mode = b.dataset.m; formB(); }, bpt: () => { bacaB(); S.bg.p.push(''); formB(); },
   bpx: b => { bacaB(); const i = +b.dataset.i; S.bg.p.splice(i, 1); S.bg.items.forEach(x => x.s = x.s.filter(k => k !== i).map(k => k > i ? k - 1 : k)); formB(); },
-  bit: () => { bacaB(); S.bg.items.push({ n: '', h: 0, s: S.bg.p.map((_, i) => i) }); formB(); }, bix: b => { bacaB(); S.bg.items.splice(+b.dataset.b, 1); formB(); },
-  bchk: b => { bacaB(); const x = S.bg.items[+b.dataset.b], i = +b.dataset.i; x.s = x.s.includes(i) ? x.s.filter(k => k !== i) : x.s.concat(i); b.classList.toggle('on'); hitB(); },
+  bit: () => { bacaB(); S.bg.items.push({ n: '', h: 0, s: [] }); formB(); }, bfoto: () => $('#bf').click(), bgal: () => $('#bf2').click(), bix: b => { bacaB(); S.bg.items.splice(+b.dataset.b, 1); formB(); },
+  bchk: b => { bacaB(); const x = S.bg.items[+b.dataset.b], i = +b.dataset.i; x.s = x.s.includes(i) ? x.s.filter(k => k !== i) : x.s.concat(i); hitB(); },
   bwa: () => { try { const { B, r, nm, items } = dataB(); kirimWA(waText({ judul: B.judul, tanggal: B.tgl, total: r.total, ppn: r.ppn, pct: String(B.pct).replace('.', ','), p: B.p.map((_, i) => ({ nama: nm(i), bagian: r.bag[i] })), items: items.map(x => ({ nama: x.nama, harga: x.harga, untuk: x.s.map(nm).join(', ') })) })); } catch (e) { toast(pesan(e)); } },
   bsimpan: b => busy(b, async () => {
     const { B, r, nm, items } = dataB(); const id = await A.simpanT({ tanggal: B.tgl, judul: B.judul, subtotal: r.sub, ppn_persen: B.pct, ppn: r.ppn, mode: B.mode, simpan_jatah: B.jatah, kategori_id: B.jatah ? B.kat : null, peserta: B.p.map((_, i) => ({ nama: nm(i), saya: i === 0, bagian: r.bag[i] })), barang: items.map(x => ({ nama: x.nama, harga: x.harga, peserta: x.s })) });
@@ -417,7 +437,7 @@ const H = {
     const ch = [], H0 = hari(); document.querySelectorAll('[data-k]').forEach(e => { const k = e.dataset.k, v = num(e.value); if (v !== pickB(S.ag, k, H0)) ch.push(k === 'total' ? { batas: v } : { kategori_id: k, batas: v }); });
     if (!ch.length) throw ramah('Belum ada yang diubah'); await A.atur(ch); toast('Anggaran tersimpan'); history.back();
   }),
-  um: b => { S.ux.m = b.dataset.m; document.querySelectorAll('[data-a=um]').forEach(x => { const on = x.dataset.m === S.ux.m; x.style.borderColor = on ? '#5B3FD0' : 'transparent'; x.querySelector('span').style.borderColor = on ? '#5B3FD0' : 'var(--ln2)'; x.querySelector('i').style.background = on ? '#5B3FD0' : 'transparent'; }); $('#ub').style.display = S.ux.m === 'tertentu' ? '' : 'none'; },
+  um: b => { S.ux.m = b.dataset.m; document.querySelectorAll('[data-a=um]').forEach(x => { const on = x.dataset.m === S.ux.m; x.style.borderColor = on ? 'var(--pb)' : 'transparent'; x.querySelector('span').style.borderColor = on ? 'var(--pb)' : 'var(--ln2)'; x.querySelector('i').style.background = on ? 'var(--pb)' : 'transparent'; }); $('#ub').style.display = S.ux.m === 'tertentu' ? '' : 'none'; },
   uunduh: b => busy(b, bikinXlsx),
   pasang: () => { const sdh = matchMedia('(display-mode: standalone)').matches || navigator.standalone; modal(`<div class="b" style="font-size:18px">Pasang di layar HP</div>${sdh ? '<div class="note g">Aplikasi sudah terpasang di perangkat ini.</div>' : `${S.ip ? `<div class="mt">${btn('ipasang', 'Pasang sekarang')}</div>` : ''}<div class="s13 mt" style="line-height:1.7"><b>iPhone / iPad (Safari):</b> ketuk tombol Bagikan (kotak dengan panah ke atas), lalu pilih "Tambah ke Layar Utama".<br><b>Android (Chrome):</b> ketuk menu titik tiga, lalu "Instal aplikasi".<br><b>Laptop / PC (Chrome atau Edge):</b> klik ikon pasang di sebelah kanan kolom alamat.</div>`}<div class="mt2">${btn('tutup', 'Tutup', 'o')}</div>`); },
   ipasang: async () => { if (S.ip) { S.ip.prompt(); await S.ip.userChoice.catch(() => { }); S.ip = null; } tutup(); },
@@ -428,6 +448,7 @@ addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.ip = e; });
 document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && H[b.dataset.a]) H[b.dataset.a](b, e); });
 document.addEventListener('input', e => {
   const t = e.target; if (t.classList.contains('mn')) t.value = fmt(num(t.value));
+  if (t.id === 'g-p' && S.bg) S.bg.ppnRp = null;
   const i = t.dataset.i; if (i === 'sandi') S.cek?.(); else if (i === 'bg' && $('#gh')) { if (t.type === 'checkbox' || t.tagName === 'SELECT') bacaB(); hitB(); } else if (i === 'fd') { const F = S.fd; F.bln = $('#fb').value ? $('#fb').value + '-01' : ''; clearTimeout(S.dt); S.dt = setTimeout(() => { F.q = $('#fq').value.trim(); muatD(true).catch(x => toast(pesan(x))); }, 300); }
   else if (t.closest('#bl') || t.id === 'o-tot' || t.id === 'o-ppn') selisih();
 });
@@ -438,7 +459,7 @@ addEventListener('unhandledrejection', e => { e.preventDefault(); toast(pesan(e.
 // ===== MULAI =====
 async function mulai() {
   const [pg, kt] = await Promise.all([A.peng(), A.kategori()]); S.set = pg; S.kat = kt; tema();
-  pg.sandi_diganti ? go('beranda', 0, true) : go('gantiSandi', {}, true);
+  !pg.sandi_diganti ? go('gantiSandi', {}, true) : !pg.nama ? go('namaku', {}, true) : go('beranda', 0, true);
 }
 (async () => {
   if ('serviceWorker' in navigator && !IS_PREVIEW) navigator.serviceWorker.register('./sw.js').catch(() => { });
