@@ -1,4 +1,6 @@
 'use strict';
+// Tolak tampil di dalam bingkai situs lain (trik klik jebakan)
+if (window.top !== window.self) { document.documentElement.innerHTML = ''; try { window.top.location = location.href; } catch { } throw new Error('dibingkai'); }
 // ===== ISI DUA BARIS INI SETELAH PROYEK SUPABASE DIBUAT (kunci "Publishable" (sb_publishable_...), BUKAN kunci secret) =====
 const CFG = { URL: 'https://bwrcloolvwxflgzvedee.supabase.co', KEY: 'sb_publishable_az8AFN-rIIMqH34Fj8yFFw_ZAQnCw7Y' };
 const IS_PREVIEW = false; // true = data contoh di memori (hanya untuk melihat tampilan). Untuk dipakai sungguhan harus false.
@@ -386,7 +388,7 @@ R.aturAnggaran = async (p, ok) => {
   if (S.agDraft) { document.querySelectorAll('[data-k]').forEach(e => { if (S.agDraft[e.dataset.k] !== undefined) e.value = S.agDraft[e.dataset.k]; }); S.agDraft = null; }
 };
 let xl;
-const muatXlsx = () => xl || (xl = new Promise((a, b) => { if (window.XLSX) return a(); const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.mini.min.js'; s.onload = a; s.onerror = () => { xl = null; b(ramah('Pembuat Excel belum bisa dimuat. Cek internetmu.')); }; document.head.appendChild(s); }));
+const muatXlsx = () => xl || (xl = new Promise((a, b) => { if (window.XLSX) return a(); const s = document.createElement('script'); s.src = './xlsx.mini.min.js'; s.onload = a; s.onerror = () => { xl = null; b(ramah('Pembuat Excel belum bisa dimuat. Cek internetmu.')); }; document.head.appendChild(s); }));
 R.unduh = async (p, ok) => {
   loading(); const H = hari(), M = blnAwal(H), [a, b, last] = await Promise.all([A.catatan({ dari: M, sampai: tBln(M, 1), per: 1 }), A.catatan({ per: 1 }), A.terakhir()]); if (!ok()) return; S.ux = { m: 'ini' };
   const o = (k, t, s) => `<button class="card row" style="width:100%;text-align:left;border:1.5px solid ${k === 'ini' ? 'var(--pb)' : 'transparent'}" data-a="um" data-m="${k}"><span style="width:22px;height:22px;border-radius:11px;border:2px solid ${k === 'ini' ? 'var(--pb)' : 'var(--ln2)'};display:flex;align-items:center;justify-content:center"><i style="width:10px;height:10px;border-radius:5px;background:${k === 'ini' ? 'var(--pb)' : 'transparent'}"></i></span><span><div class="b s13" style="font-size:14px">${t}</div><div class="mu s12" style="margin-top:2px">${s}</div></span></button>`;
