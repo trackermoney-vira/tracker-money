@@ -303,6 +303,7 @@ R.form = async (p, ok) => {
   else { const j = p.jenis === 'masuk' ? 'masuk' : 'keluar'; F = { jenis: j, toko: '', tanggal: hari(), kategori_id: (j === 'masuk' ? KM() : KK())[0]?.id, total: 0, ppn: 0, sumber: 'manual', barang: [] }; }
   if (!S.rek.length) { S.rek = await A.rek(); if (!ok()) return; }
   if (!F.rekening_id) F.rekening_id = (F.jenis === 'masuk' ? S.rek.find(r => r.jenis !== 'tunai') || S.rek[0] : S.rek[0] || {}).id;
+  if (F.jenis !== 'masuk' && !(F.barang || []).length && F.total > 0) { F.barang = [{ nama: F.toko || 'Belanja', jumlah: 1, harga: F.total - (Number(F.ppn) || 0) }]; F.ppnx = F.ppn > 0; }
   if (F.ppnx == null) { const s = (F.barang || []).reduce((a, b) => a + Number(b.harga), 0); F.ppnx = F.ppn > 0 && s > 0 && Math.abs(s + Number(F.ppn) - F.total) < Math.abs(s - F.total); }
   S.fo = F; const baru = !F.id, mk = F.jenis === 'masuk', judul = p.hasil ? 'Cek hasil bacaan' : mk ? (baru ? 'Catat pemasukan' : 'Ubah pemasukan') : baru ? 'Catat pengeluaran' : 'Ubah catatan';
   if (mk) {
@@ -326,14 +327,14 @@ const bacaP = () => ({ jumlah: num($('#pj').value), dari: $('#pd').value, ke: $(
 function bacaF() {
   const F = S.fo; F.toko = $('#o-toko').value.trim(); F.tanggal = $('#o-tgl').value; F.kategori_id = $('#o-kat').value; F.ppn = $('#o-ppn') ? num($('#o-ppn').value) : 0; if ($('#o-rek')) F.rekening_id = $('#o-rek').value; F.ppnx = !!$('#o-px')?.checked;
   F.barang = [...document.querySelectorAll('.br')].map(r => ({ nama: r.querySelector('[data-k=n]').value.trim(), jumlah: Number(String(r.querySelector('[data-k=j]').value).replace(',', '.')) || 1, harga: num(r.querySelector('[data-k=h]').value) })).filter(b => b.nama || b.harga);
-  F.otomatis = F.jenis !== 'masuk' && document.querySelectorAll('.br').length > 0; F.total = F.otomatis ? F.barang.reduce((a, b) => a + b.harga, 0) + (F.ppnx ? F.ppn : 0) : num($('#o-tot').value); return F;
+  F.otomatis = F.jenis !== 'masuk'; F.total = F.otomatis ? F.barang.reduce((a, b) => a + b.harga, 0) + (F.ppnx ? F.ppn : 0) : num($('#o-tot').value); return F;
 }
 // Total dihitung otomatis dari barang. Kalau belum ada barang, Total diisi sendiri.
 function selisih() {
   const c = $('#bc'), t = $('#bs'), o = $('#o-tot'); if (!c) return; const F = bacaF(); c.textContent = `Barang (${F.barang.length})`;
-  if (o.disabled && !F.otomatis) { o.value = '0'; F.total = 0; } o.disabled = F.otomatis; o.classList.toggle('ro', F.otomatis); if (F.otomatis) o.value = fmt(F.total);
+  o.disabled = F.otomatis; o.classList.toggle('ro', F.otomatis); if (F.otomatis) o.value = fmt(F.total) || '0';
   $('#o-pxw').style.display = F.otomatis && F.ppn > 0 ? '' : 'none';
-  $('#o-th').textContent = F.otomatis ? (F.ppnx && F.ppn ? 'Dihitung otomatis: harga barang + PPN.' : 'Dihitung otomatis dari harga barang.') : 'Belum ada barang, jadi isi totalnya sendiri.';
+  $('#o-th').textContent = !F.barang.length ? 'Total terisi sendiri dari barang. Ketuk "+ Tambah" di bagian Barang (misal: Bensin 50.000).' : F.ppnx && F.ppn ? 'Dihitung otomatis: harga barang + PPN.' : 'Dihitung otomatis dari harga barang.';
   t.innerHTML = F.barang.some(b => !b.nama) ? '<div class="note w" style="margin-top:8px">Ada barang yang belum diberi nama.</div>' : '';
 }
 
@@ -549,7 +550,7 @@ const H = {
   bx: b => { b.closest('.br').remove(); selisih(); }, 
 
   fsimpan: b => busy(b, async () => {
-    const F = bacaF(), mk = F.jenis === 'masuk'; if (mk && F.total <= 0) throw ramah('Isi jumlah yang masuk dulu'); if (!F.toko) throw ramah(mk ? 'Isi keterangannya dulu, misal: Gaji November' : 'Isi nama tokonya dulu'); if (!/^\d{4}-\d{2}-\d{2}$/.test(F.tanggal)) throw ramah('Isi tanggalnya dulu'); if (F.total <= 0) throw ramah('Isi totalnya dulu'); if (F.ppn > F.total) throw ramah('PPN tidak boleh lebih besar dari total'); if (!F.kategori_id) throw ramah('Pilih kategorinya dulu'); if (F.barang.some(b => !b.nama)) throw ramah('Ada barang yang belum diberi nama');
+    const F = bacaF(), mk = F.jenis === 'masuk'; if (mk && F.total <= 0) throw ramah('Isi jumlah yang masuk dulu'); if (!F.toko) throw ramah(mk ? 'Isi keterangannya dulu, misal: Gaji November' : 'Isi nama tokonya dulu'); if (!/^\d{4}-\d{2}-\d{2}$/.test(F.tanggal)) throw ramah('Isi tanggalnya dulu'); if (F.total <= 0) throw ramah(mk ? 'Isi jumlahnya dulu' : 'Tambah barang dan harganya dulu'); if (F.ppn > F.total) throw ramah('PPN tidak boleh lebih besar dari total'); if (!F.kategori_id) throw ramah('Pilih kategorinya dulu'); if (F.barang.some(b => !b.nama)) throw ramah('Ada barang yang belum diberi nama');
     if (!F.rekening_id) throw ramah(mk ? 'Pilih uangnya masuk ke mana' : 'Pilih bayar pakai apa'); await A.simpan({ id: F.id || null, rekening_id: F.rekening_id, jenis: F.jenis || 'keluar', tanggal: F.tanggal, toko: F.toko, kategori_id: F.kategori_id, total: F.total, ppn: mk ? 0 : F.ppn, sumber: F.sumber, barang: mk ? [] : F.barang }); toast(mk ? 'Pemasukan tersimpan' : 'Catatan tersimpan'); F.id ? history.back() : go('beranda', 0, true);
   }),
   fhapus: b => tanya({ j: 'Hapus catatan ini?', s: 'Catatan yang dihapus tidak bisa dikembalikan.', ya: 'Ya, hapus', r: 1 }, 'fhapus2', b),
