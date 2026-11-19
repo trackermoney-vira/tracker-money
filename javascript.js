@@ -156,7 +156,31 @@ function pesan(e) {
 let tt;
 function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 3200); }
 function modal(h) { $('#mb').innerHTML = h; $('#mod').classList.add('on'); }
-function tutup() { $('#mod').classList.remove('on'); $('#mb').innerHTML = ''; }
+function tutup() { $('#mod').classList.remove('on'); $('#mb').innerHTML = ''; tutupK(); }
+function tutupK() { const k = $('#kf'); if (k) { k.classList.remove('on'); k.innerHTML = ''; } }
+// kartu konfirmasi: o = { j: judul, s: penjelasan, ya: tombol, r: merah, info: hanya tombol Mengerti }
+function tanya(o, aksi, src) {
+  let k = $('#kf'); if (!k) { k = document.createElement('div'); k.id = 'kf'; k.setAttribute('role', 'alertdialog'); document.body.appendChild(k); }
+  k.innerHTML = `<div class="kc"><div class="b" style="font-size:17px">${o.j}</div>${o.s ? `<div class="mu s13 mt" style="line-height:1.55">${o.s}</div>` : ''}<div class="row g8 mt2">${o.info ? `<button class="btn" data-k="no">Mengerti</button>` : `<button class="btn o" data-k="no" style="height:48px">Batal</button><button class="btn ${o.r ? 'rr' : ''}" data-k="ya" style="height:48px" data-ld="${E(src?.dataset.ld || 'Sebentar…')}">${o.ya || 'Ya, lanjut'}</button>`}</div></div>`;
+  k.classList.add('on'); S.kAksi = aksi; S.kSrc = src;
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('#kf [data-k]'); if (!b) { if (e.target.id === 'kf' && !$('#kf [disabled]')) tutupK(); return; }
+  e.stopPropagation(); if (b.dataset.k === 'no') return tutupK(); if (b.disabled) return;
+  const src = S.kSrc; if (src) for (const x in src.dataset) if (x !== 'a' && x !== 'ld') b.dataset[x] = src.dataset[x];
+  const f = typeof S.kAksi === 'function' ? S.kAksi : H[S.kAksi]; await f(b); if (b.isConnected) tutupK();
+}, true);
+// aksi yang perlu dikonfirmasi dulu
+const KON = {
+  fsimpan: () => S.fo?.id ? { j: 'Simpan perubahan?', s: 'Catatan lama diganti dengan isi yang baru.', ya: 'Ya, simpan' } : { j: S.fo?.jenis === 'masuk' ? 'Simpan pemasukan ini?' : 'Simpan catatan ini?', s: `Total ${rp(num($('#o-tot')?.value || '0'))} akan dicatat.`, ya: 'Ya, simpan' },
+  bsimpan: () => ({ j: 'Simpan tagihan ini?', s: 'Pembagian tagihan disimpan di Riwayat tagihan.', ya: 'Ya, simpan' }),
+  asimpan: () => ({ j: 'Simpan anggaran?', s: 'Batas baru berlaku mulai bulan ini.', ya: 'Ya, simpan' }),
+  uunduh: () => ({ j: 'Unduh Excel sekarang?', s: 'File Excel berisi catatanmu akan diunduh ke perangkat ini.', ya: 'Ya, unduh' }),
+  ksimpan: () => ({ j: S.ke?.id ? 'Simpan perubahan kategori?' : 'Tambah kategori ini?', ya: 'Ya, simpan' }),
+  rsimpan: () => ({ j: S.re?.id ? 'Simpan perubahan rekening?' : 'Tambah rekening ini?', s: S.re?.id ? 'Kalau saldonya diganti, selisihnya disesuaikan otomatis.' : '', ya: 'Ya, simpan' }),
+  psimpan: () => ({ j: 'Pindahkan uang sekarang?', s: `${rp(num($('#pj')?.value || '0'))} dipindah dari ${E(rn($('#pd')?.value).nama || '-')} ke ${E(rn($('#pk')?.value).nama || '-')}.`, ya: 'Ya, pindahkan' }),
+  rhapus: () => S.rek.length <= 1 ? { j: 'Rekening ini belum bisa dihapus', s: 'Minimal harus ada satu rekening. Tambah rekening lain dulu, baru hapus yang ini.', info: 1 } : { j: `Hapus rekening ${E(S.rek.find(r => r.id === S.re?.id)?.nama || '')}?`, s: 'Rekening hanya bisa dihapus kalau sudah tidak dipakai catatan atau pindah uang. Yang sudah dihapus tidak bisa dikembalikan.', ya: 'Ya, hapus', r: 1 },
+};
 function render(h) { $('#v').innerHTML = h; scrollTo(0, 0); }
 async function busy(b, fn) {
   if (b.disabled) return; const old = b.innerHTML; b.disabled = true; b.innerHTML = '<span class="sp-in"></span>' + E(b.dataset.ld || 'Sebentar…');
@@ -171,7 +195,7 @@ const head = (t, kanan = '', back = true) => `<div class="top">${back ? `<button
 const ibtn = (a, i, l, x = '') => `<button class="ib" data-a="${a}" ${x} aria-label="${l}">${ic(i, 20)}</button>`;
 const btn = (a, t, c = '', x = '', ld = '') => `<button class="btn ${c}" data-a="${a}" ${x} data-ld="${E(ld)}">${t}</button>`;
 const empty = (i, t, s) => `<div class="card c" style="padding:30px 20px"><div style="color:var(--pr)">${ic(i, 34)}</div><div class="b mt">${t}</div><div class="mu s13 mt">${s}</div></div>`;
-const loading = () => render('<div class="c mu" style="padding-top:40vh">Memuat…</div>');
+const loading = () => render('<div class="c mu" style="padding-top:38vh"><span class="sp-in" style="width:34px;height:34px;color:var(--pr);display:inline-block"></span><div class="s13 mt">Memuat…</div></div>');
 const opsiKat = (v, semua, j = 'keluar') => (semua ? '<option value="">Semua kategori</option>' : '') + S.kat.filter(k => (k.jenis || 'keluar') === j).map(k => `<option value="${E(k.id)}" ${k.id === v ? 'selected' : ''}>${E(k.nama)}</option>`).join('');
 const baris = c => `<button class="item" data-a="buka" data-id="${E(c.id)}"><span class="av" style="background:${E(kn(c.kategori_id).warna)}22;color:${E(kn(c.kategori_id).warna)}">${E((c.toko || '?')[0].toUpperCase())}</span><span class="fl"><div class="b s13" style="font-size:14px">${E(c.toko)}</div><div class="mu s12" style="margin-top:2px">${E(kn(c.kategori_id).nama)} · ${c.rekening_id && rn(c.rekening_id).nama ? E(rn(c.rekening_id).nama) : c.jenis === 'masuk' ? 'Pemasukan' : SUMBER[c.sumber] || ''}</div></span>${c.jenis === 'masuk' ? `<b style="font-size:14px;color:var(--pr)">+${fmt(c.total)}</b>` : `<b style="font-size:14px">-${fmt(c.total)}</b>`}</button>`;
 function pickB(rows, kunci, tgl) { const r = (rows || []).filter(x => x.kunci === kunci && x.berlaku_mulai <= tgl).sort((a, b) => b.berlaku_mulai.localeCompare(a.berlaku_mulai))[0]; return r ? Number(r.batas) : 0; }
@@ -268,7 +292,7 @@ async function kecil(f) {
   for (const q of [.8, .65, .5, .4]) { const d = c.toDataURL('image/jpeg', q); if (d.length < 1.8e6) return d.split(',')[1]; } throw ramah('Fotonya terlalu besar, coba foto lagi');
 }
 async function bacaFile(f) {
-  const cam = $('#cam'), lama = cam.innerHTML, tok = S.tok; document.querySelectorAll('#v .btn').forEach(b => b.disabled = true); cam.innerHTML = '<span class="sp-in" style="width:34px;height:34px;border-width:4px"></span><div class="b" style="color:#fff">Membaca struk…</div><div class="s13">Sebentar ya, biasanya kurang dari 10 detik.</div>';
+  const cam = $('#cam'), lama = cam.innerHTML, tok = S.tok; document.querySelectorAll('#v .btn').forEach(b => b.disabled = true); cam.innerHTML = '<span class="sp-in" style="width:38px;height:38px;color:#9DB8F0"></span><div class="b" style="color:#fff">Membaca struk…</div><div class="s13">Sebentar ya, biasanya kurang dari 10 detik.</div>';
   try { const h = await A.baca(await kecil(f), 'image/jpeg'); if (tok === S.tok) go('form', { hasil: h }); } catch (e) { if (tok === S.tok) { toast(pesan(e)); cam.innerHTML = lama; document.querySelectorAll('#v .btn').forEach(b => b.disabled = false); } }
 }
 R.form = async (p, ok) => {
@@ -279,6 +303,7 @@ R.form = async (p, ok) => {
   else { const j = p.jenis === 'masuk' ? 'masuk' : 'keluar'; F = { jenis: j, toko: '', tanggal: hari(), kategori_id: (j === 'masuk' ? KM() : KK())[0]?.id, total: 0, ppn: 0, sumber: 'manual', barang: [] }; }
   if (!S.rek.length) { S.rek = await A.rek(); if (!ok()) return; }
   if (!F.rekening_id) F.rekening_id = (F.jenis === 'masuk' ? S.rek.find(r => r.jenis !== 'tunai') || S.rek[0] : S.rek[0] || {}).id;
+  if (F.ppnx == null) { const s = (F.barang || []).reduce((a, b) => a + Number(b.harga), 0); F.ppnx = F.ppn > 0 && s > 0 && Math.abs(s + Number(F.ppn) - F.total) < Math.abs(s - F.total); }
   S.fo = F; const baru = !F.id, mk = F.jenis === 'masuk', judul = p.hasil ? 'Cek hasil bacaan' : mk ? (baru ? 'Catat pemasukan' : 'Ubah pemasukan') : baru ? 'Catat pengeluaran' : 'Ubah catatan';
   if (mk) {
     render(`${head(judul)}<div class="card c" style="padding:18px 16px"><div class="mu s12 b">Jumlah yang masuk</div><input class="in mn" id="o-tot" inputmode="numeric" placeholder="0" aria-label="Jumlah" value="${fmt(F.total)}" style="font-size:28px;font-weight:800;text-align:center;height:60px;border:0;box-shadow:none;color:var(--pr);margin-top:4px"></div>
@@ -290,7 +315,8 @@ R.form = async (p, ok) => {
   const br = b => `<div class="br row g8" style="margin-top:8px"><input class="in mini fl" data-k="n" placeholder="Nama barang" maxlength="80" value="${E(b.nama)}"><input class="in mini" data-k="j" inputmode="decimal" style="width:52px" aria-label="Jumlah" value="${E(b.jumlah)}"><input class="in mini mn" data-k="h" inputmode="numeric" style="width:92px" aria-label="Harga" value="${fmt(b.harga)}"><button data-a="bx" class="mu" aria-label="Hapus barang">${ic('x', 18)}</button></div>`;
   render(`${head(judul)}${p.hasil ? `<div class="note ${F.cek ? 'w' : 'g'}">${F.cek ? 'Ada yang kurang jelas dibaca. Cek dulu sebelum disimpan.' : 'Struk sudah terbaca. Cek sekali lagi, lalu simpan.'}</div>` : ''}
   <div class="f"><label>Nama toko</label><input class="in" id="o-toko" maxlength="80" value="${E(F.toko)}"></div><div class="f"><label>Tanggal</label><input class="in" id="o-tgl" type="date" value="${E(F.tanggal)}"></div><div class="f"><label>Kategori</label><select class="in" id="o-kat">${opsiKat(F.kategori_id)}</select></div>
-  <div class="row g8"><div class="f fl"><label>Total</label><input class="in mn" id="o-tot" inputmode="numeric" value="${fmt(F.total)}"></div><div class="f fl"><label>PPN (kalau ada)</label><input class="in mn" id="o-ppn" inputmode="numeric" value="${fmt(F.ppn)}"></div></div>
+  <div class="row g8" style="align-items:flex-start"><div class="f fl"><label>Total bayar</label><input class="in mn" id="o-tot" inputmode="numeric" value="${fmt(F.total)}"></div><div class="f fl"><label>PPN (pajak, kalau ada)</label><input class="in mn" id="o-ppn" inputmode="numeric" value="${fmt(F.ppn)}"></div></div><div class="mu s12" id="o-th" style="margin-top:6px;line-height:1.5"></div>
+  <label id="o-pxw" class="row s13" style="gap:8px;margin-top:8px;display:none"><input type="checkbox" id="o-px" ${F.ppnx ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--pb)">Harga barang belum termasuk PPN (tambahkan ke total)</label>
   ${rekPil(F.rekening_id, 'Bayar pakai')}
   <div class="card"><div class="row sp"><div class="mu s12 b" id="bc">Barang</div><button class="b s13" style="color:var(--pr)" data-a="bt">+ Tambah</button></div><div id="bl">${F.barang.map(br).join('')}</div><div id="bs" class="s12 mt"></div></div>
   <div class="mt2">${btn('fsimpan', 'Simpan', '', '', 'Menyimpan…')}</div>${baru ? '' : `<div class="mt">${btn('fhapus', 'Hapus catatan ini', 'r')}</div>`}`);
@@ -298,13 +324,17 @@ R.form = async (p, ok) => {
 };
 const bacaP = () => ({ jumlah: num($('#pj').value), dari: $('#pd').value, ke: $('#pk').value, tanggal: $('#pt').value, biaya: num($('#pb').value) });
 function bacaF() {
-  const F = S.fo; F.toko = $('#o-toko').value.trim(); F.tanggal = $('#o-tgl').value; F.kategori_id = $('#o-kat').value; F.total = num($('#o-tot').value); F.ppn = $('#o-ppn') ? num($('#o-ppn').value) : 0; if ($('#o-rek')) F.rekening_id = $('#o-rek').value;
-  F.barang = [...document.querySelectorAll('.br')].map(r => ({ nama: r.querySelector('[data-k=n]').value.trim(), jumlah: Number(String(r.querySelector('[data-k=j]').value).replace(',', '.')) || 1, harga: num(r.querySelector('[data-k=h]').value) })).filter(b => b.nama); return F;
+  const F = S.fo; F.toko = $('#o-toko').value.trim(); F.tanggal = $('#o-tgl').value; F.kategori_id = $('#o-kat').value; F.ppn = $('#o-ppn') ? num($('#o-ppn').value) : 0; if ($('#o-rek')) F.rekening_id = $('#o-rek').value; F.ppnx = !!$('#o-px')?.checked;
+  F.barang = [...document.querySelectorAll('.br')].map(r => ({ nama: r.querySelector('[data-k=n]').value.trim(), jumlah: Number(String(r.querySelector('[data-k=j]').value).replace(',', '.')) || 1, harga: num(r.querySelector('[data-k=h]').value) })).filter(b => b.nama || b.harga);
+  F.otomatis = F.jenis !== 'masuk' && F.barang.length > 0; F.total = F.otomatis ? F.barang.reduce((a, b) => a + b.harga, 0) + (F.ppnx ? F.ppn : 0) : num($('#o-tot').value); return F;
 }
+// Total dihitung otomatis dari barang. Kalau belum ada barang, Total diisi sendiri.
 function selisih() {
-  const c = $('#bc'), t = $('#bs'); if (!c) return; const F = bacaF(), s = F.barang.reduce((a, b) => a + b.harga, 0); c.textContent = `Barang (${F.barang.length})`;
-  const beda = F.barang.length && Math.abs(s - F.total) > Math.max(500, F.total * .02) && Math.abs(s + F.ppn - F.total) > Math.max(500, F.total * .02);
-  t.innerHTML = beda ? `<div class="note w" style="margin-top:8px">Jumlah barang ${rp(s)} belum cocok dengan total. Cek lagi ya.</div>` : '';
+  const c = $('#bc'), t = $('#bs'), o = $('#o-tot'); if (!c) return; const F = bacaF(); c.textContent = `Barang (${F.barang.length})`;
+  o.readOnly = F.otomatis; o.classList.toggle('ro', F.otomatis); if (F.otomatis) o.value = fmt(F.total);
+  $('#o-pxw').style.display = F.otomatis && F.ppn > 0 ? '' : 'none';
+  $('#o-th').textContent = F.otomatis ? (F.ppnx && F.ppn ? 'Dihitung otomatis: harga barang + PPN.' : 'Dihitung otomatis dari harga barang.') : 'Belum ada barang, jadi isi totalnya sendiri.';
+  t.innerHTML = F.barang.some(b => !b.nama) ? '<div class="note w" style="margin-top:8px">Ada barang yang belum diberi nama.</div>' : '';
 }
 
 // ----- Bagi tagihan -----
@@ -516,12 +546,13 @@ const H = {
   fmore: b => busy(b, async () => { S.fd.hal++; await muatD(false); }),
   amb: () => $('#f1').click(), gal: () => $('#f2').click(),
   bt: () => { bacaF(); S.fo.barang.push({ nama: '', jumlah: 1, harga: 0 }); $('#bl').insertAdjacentHTML('beforeend', S.brHtml({ nama: '', jumlah: 1, harga: 0 })); selisih(); },
-  bx: b => { b.closest('.br').remove(); selisih(); },
+  bx: b => { b.closest('.br').remove(); selisih(); }, 
+
   fsimpan: b => busy(b, async () => {
-    const F = bacaF(), mk = F.jenis === 'masuk'; if (mk && F.total <= 0) throw ramah('Isi jumlah yang masuk dulu'); if (!F.toko) throw ramah(mk ? 'Isi keterangannya dulu, misal: Gaji November' : 'Isi nama tokonya dulu'); if (!/^\d{4}-\d{2}-\d{2}$/.test(F.tanggal)) throw ramah('Isi tanggalnya dulu'); if (F.total <= 0) throw ramah('Isi totalnya dulu'); if (F.ppn > F.total) throw ramah('PPN tidak boleh lebih besar dari total'); if (!F.kategori_id) throw ramah('Pilih kategorinya dulu');
+    const F = bacaF(), mk = F.jenis === 'masuk'; if (mk && F.total <= 0) throw ramah('Isi jumlah yang masuk dulu'); if (!F.toko) throw ramah(mk ? 'Isi keterangannya dulu, misal: Gaji November' : 'Isi nama tokonya dulu'); if (!/^\d{4}-\d{2}-\d{2}$/.test(F.tanggal)) throw ramah('Isi tanggalnya dulu'); if (F.total <= 0) throw ramah('Isi totalnya dulu'); if (F.ppn > F.total) throw ramah('PPN tidak boleh lebih besar dari total'); if (!F.kategori_id) throw ramah('Pilih kategorinya dulu'); if (F.barang.some(b => !b.nama)) throw ramah('Ada barang yang belum diberi nama');
     if (!F.rekening_id) throw ramah(mk ? 'Pilih uangnya masuk ke mana' : 'Pilih bayar pakai apa'); await A.simpan({ id: F.id || null, rekening_id: F.rekening_id, jenis: F.jenis || 'keluar', tanggal: F.tanggal, toko: F.toko, kategori_id: F.kategori_id, total: F.total, ppn: mk ? 0 : F.ppn, sumber: F.sumber, barang: mk ? [] : F.barang }); toast(mk ? 'Pemasukan tersimpan' : 'Catatan tersimpan'); F.id ? history.back() : go('beranda', 0, true);
   }),
-  fhapus: () => modal(`<div class="b" style="font-size:18px">Hapus catatan ini?</div><div class="mu s13 mt">Catatan yang dihapus tidak bisa dikembalikan.</div><div class="mt2">${btn('fhapus2', 'Ya, hapus', '', '', 'Menghapus…')}</div><div class="mt">${btn('tutup', 'Batal', 'o')}</div>`),
+  fhapus: b => tanya({ j: 'Hapus catatan ini?', s: 'Catatan yang dihapus tidak bisa dikembalikan.', ya: 'Ya, hapus', r: 1 }, 'fhapus2', b),
   fhapus2: b => busy(b, async () => { await A.hapus(S.fo.id); tutup(); toast('Catatan dihapus'); history.back(); }), tutup,
   bmode: b => { bacaB(); S.bg.mode = b.dataset.m; formB(); }, bpt: () => { bacaB(); S.bg.p.push(''); formB(); },
   bpx: b => { bacaB(); const i = +b.dataset.i; S.bg.p.splice(i, 1); S.bg.items.forEach(x => x.s = x.s.filter(k => k !== i).map(k => k > i ? k - 1 : k)); formB(); },
@@ -533,7 +564,7 @@ const H = {
     S.bg = null; toast('Tagihan tersimpan'); go('tagihanDetail', { id }, true);
   }),
   tbuka: b => go('tagihanDetail', { id: b.dataset.id }), twa: () => { const d = S.td; kirimWA(waText({ ...d, pct: String(d.pct).replace('.', ',') })); },
-  thapus: () => modal(`<div class="b" style="font-size:18px">Hapus tagihan ini?</div><div class="mu s13 mt">Jatahmu yang tercatat sebagai pengeluaran juga ikut terhapus.</div><div class="mt2">${btn('thapus2', 'Ya, hapus', '', '', 'Menghapus…')}</div><div class="mt">${btn('tutup', 'Batal', 'o')}</div>`),
+  thapus: b => tanya({ j: 'Hapus tagihan ini?', s: 'Jatahmu yang tercatat sebagai pengeluaran juga ikut terhapus.', ya: 'Ya, hapus', r: 1 }, 'thapus2', b),
   thapus2: b => busy(b, async () => { await A.hapusT(S.td.id); tutup(); toast('Tagihan dihapus'); history.back(); }),
   lm: b => go('laporan', { m: b.dataset.m }, true),
   asimpan: b => busy(b, async () => {
@@ -579,24 +610,26 @@ const H = {
     if (draft && S.cur[0] === 'pindah') return go('pindah', { draft }, true);
     draw();
   }),
-  rhapus: b => busy(b, async () => { if (S.rek.length <= 1) throw ramah('Minimal harus ada satu rekening'); await A.rekHapus(S.re.id); S.rek = await A.rek(); tutup(); toast('Rekening dihapus'); go('dompet', 0, true); }),
+  rhapus: b => busy(b, async () => {
+    try { await A.rekHapus(S.re.id); } catch (e) { const nm = E(S.rek.find(r => r.id === S.re.id)?.nama || 'ini'); tutup(); return tanya({ j: 'Rekening ' + nm + ' belum bisa dihapus', s: `${E(pesan(e))}<br><br><b>Langkahnya:</b><br>1. Buka rekening ${nm} di Dompet &amp; rekening.<br>2. Ketuk tiap catatan, ganti "Bayar pakai" ke rekening lain, lalu simpan.<br>3. Pindah uang yang memakai rekening ini: ketuk lalu hapus.<br>4. Setelah kosong, hapus rekening ini lagi.`, info: 1 }); }
+    S.rek = await A.rek(); tutup(); toast('Rekening dihapus'); go('dompet', 0, true); }),
   rbln: b => go('rekDetail', { id: S.rd.id, bln: b.dataset.b }, true),
-  phapus: b => { S.ph = b.dataset.id; modal(`<div class="b" style="font-size:18px">Hapus pindah uang ini?</div><div class="mu s13 mt">Saldo kedua rekening kembali seperti sebelum dipindah. Biaya adminnya (kalau ada) ikut terhapus.</div><div class="mt2">${btn('phapus2', 'Ya, hapus', '', '', 'Menghapus…')}</div><div class="mt">${btn('tutup', 'Batal', 'o')}</div>`); },
+  phapus: b => { S.ph = b.dataset.id; tanya({ j: 'Hapus pindah uang ini?', s: 'Saldo kedua rekening kembali seperti sebelum dipindah. Biaya adminnya (kalau ada) ikut terhapus.', ya: 'Ya, hapus', r: 1 }, 'phapus2', b); },
   phapus2: b => busy(b, async () => { await A.hapusPindah(S.ph); tutup(); toast('Pindah uang dihapus'); draw(); }),
   psimpan: b => busy(b, async () => {
     const d = bacaP(); if (d.jumlah <= 0) throw ramah('Isi jumlah yang dipindah dulu'); if (!d.dari || !d.ke) throw ramah('Pilih rekening asal dan tujuannya'); if (d.dari === d.ke) throw ramah('Rekening asal dan tujuan harus beda'); if (!/^\d{4}-\d{2}-\d{2}$/.test(d.tanggal)) throw ramah('Isi tanggalnya dulu');
     await A.pindah(d); S.rek = await A.rek(); toast('Uang sudah dipindah'); go('dompet', 0, true);
   }),
-  keluar: () => modal(`<div class="b" style="font-size:18px">Keluar dari aplikasi?</div><div class="mt2">${btn('keluar2', 'Ya, keluar', '', '', 'Keluar…')}</div><div class="mt">${btn('tutup', 'Batal', 'o')}</div>`),
+  keluar: b => tanya({ j: 'Keluar dari aplikasi?', s: 'Nanti perlu masuk lagi pakai email dan kata sandi.', ya: 'Ya, keluar', r: 1 }, 'keluar2', b),
   keluar2: b => busy(b, async () => { await A.keluar(); S.u = null; S.bg = null; tutup(); go('masuk', 0, true); }),
 };
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.ip = e; });
-document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && H[b.dataset.a]) H[b.dataset.a](b, e); });
+document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || !H[b.dataset.a]) return; const a = b.dataset.a; if (KON[a] && !b.disabled) { const o = KON[a](); return o.info ? tanya(o) : tanya(o, a, b); } H[a](b, e); });
 document.addEventListener('input', e => {
   const t = e.target; if (t.classList.contains('mn')) t.value = fmt(num(t.value));
   if (t.id === 'g-p' && S.bg) S.bg.ppnRp = null;
   const i = t.dataset.i; if (i === 'sandi') S.cek?.(); else if (i === 'bg' && $('#gh')) { if (t.type === 'checkbox' || t.tagName === 'SELECT') bacaB(); hitB(); } else if (i === 'fd') { const F = S.fd; F.bln = $('#fb').value ? $('#fb').value + '-01' : ''; clearTimeout(S.dt); S.dt = setTimeout(() => { F.q = $('#fq').value.trim(); muatD(true).catch(x => toast(pesan(x))); }, 300); }
-  else if (t.closest('#bl') || t.id === 'o-tot' || t.id === 'o-ppn') selisih();
+  else if (t.closest('#bl') || t.id === 'o-ppn' || t.id === 'o-px') selisih();
 });
 document.addEventListener('change', e => { if (e.target.id === 'g-k' || e.target.id === 'g-t') hitB(); });
 $('#mod').addEventListener('click', e => { if (e.target.id === 'mod') tutup(); });
