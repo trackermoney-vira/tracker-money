@@ -326,12 +326,12 @@ const bacaP = () => ({ jumlah: num($('#pj').value), dari: $('#pd').value, ke: $(
 function bacaF() {
   const F = S.fo; F.toko = $('#o-toko').value.trim(); F.tanggal = $('#o-tgl').value; F.kategori_id = $('#o-kat').value; F.ppn = $('#o-ppn') ? num($('#o-ppn').value) : 0; if ($('#o-rek')) F.rekening_id = $('#o-rek').value; F.ppnx = !!$('#o-px')?.checked;
   F.barang = [...document.querySelectorAll('.br')].map(r => ({ nama: r.querySelector('[data-k=n]').value.trim(), jumlah: Number(String(r.querySelector('[data-k=j]').value).replace(',', '.')) || 1, harga: num(r.querySelector('[data-k=h]').value) })).filter(b => b.nama || b.harga);
-  F.otomatis = F.jenis !== 'masuk' && F.barang.length > 0; F.total = F.otomatis ? F.barang.reduce((a, b) => a + b.harga, 0) + (F.ppnx ? F.ppn : 0) : num($('#o-tot').value); return F;
+  F.otomatis = F.jenis !== 'masuk' && document.querySelectorAll('.br').length > 0; F.total = F.otomatis ? F.barang.reduce((a, b) => a + b.harga, 0) + (F.ppnx ? F.ppn : 0) : num($('#o-tot').value); return F;
 }
 // Total dihitung otomatis dari barang. Kalau belum ada barang, Total diisi sendiri.
 function selisih() {
   const c = $('#bc'), t = $('#bs'), o = $('#o-tot'); if (!c) return; const F = bacaF(); c.textContent = `Barang (${F.barang.length})`;
-  o.readOnly = F.otomatis; o.classList.toggle('ro', F.otomatis); if (F.otomatis) o.value = fmt(F.total);
+  if (o.disabled && !F.otomatis) { o.value = '0'; F.total = 0; } o.disabled = F.otomatis; o.classList.toggle('ro', F.otomatis); if (F.otomatis) o.value = fmt(F.total);
   $('#o-pxw').style.display = F.otomatis && F.ppn > 0 ? '' : 'none';
   $('#o-th').textContent = F.otomatis ? (F.ppnx && F.ppn ? 'Dihitung otomatis: harga barang + PPN.' : 'Dihitung otomatis dari harga barang.') : 'Belum ada barang, jadi isi totalnya sendiri.';
   t.innerHTML = F.barang.some(b => !b.nama) ? '<div class="note w" style="margin-top:8px">Ada barang yang belum diberi nama.</div>' : '';
